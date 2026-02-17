@@ -283,6 +283,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted">1레벨 시스템</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted">베이스 차종</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted">공용화 구분</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-text-muted">신규개발 사유</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-text-muted">2레벨 부품</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted">공용화 포함 ($/대)</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-text-muted">신규개발 시 ($/대)</th>
@@ -328,6 +329,34 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                         )}
                       </td>
                       <td className="px-4 py-3"><CoTypeBadge type={part.coType} /></td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          if (part.coType === '1레벨 C/O') return <span className="text-text-subtle">—</span>
+                          const cats = [...new Set(
+                            (part.details ?? [])
+                              .filter(sub => !sub.isCo && sub.reasonDetail?.category)
+                              .map(sub => sub.reasonDetail!.category)
+                          )]
+                          if (cats.length === 0) return <span className="text-text-subtle text-xs">—</span>
+                          const catColors: Record<string, string> = {
+                            '디자인': 'bg-purple-100 text-purple-700',
+                            '사양변경': 'bg-amber-100 text-amber-700',
+                            '법규': 'bg-blue-100 text-blue-700',
+                            '신규사양': 'bg-emerald-100 text-emerald-700',
+                            '형상차이': 'bg-rose-100 text-rose-700',
+                            '성능': 'bg-orange-100 text-orange-700',
+                          }
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {cats.map(c => (
+                                <span key={c} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${catColors[c] ?? 'bg-secondary text-text-muted'}`}>
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className="font-medium">{part.coSubParts}</span>
                         <span className="text-text-subtle">/{part.subParts}</span>
@@ -342,7 +371,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                     {/* 2레벨 상세 확장 영역 */}
                     {isExpanded && hasDetails && (
                       <tr key={`detail-${i}`}>
-                        <td colSpan={8} className="p-0">
+                        <td colSpan={9} className="p-0">
                           <div className="bg-[#F8FAFF] border-y border-primary/10">
                             <div className="flex items-center justify-between px-6 py-3 border-b border-primary/10">
                               <div className="flex items-center gap-3">
@@ -442,7 +471,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                                           const catEmoji = { '디자인': '🎨', '사양변경': '🔧', '법규': '📋', '신규사양': '✨', '형상차이': '📐', '성능': '⚡' }
                                           return (
                                           <tr>
-                                            <td colSpan={8} className="p-0">
+                                            <td colSpan={9} className="p-0">
                                               <div className="bg-gradient-to-b from-[#FFF5F5] to-[#FFF9F5] border-y border-danger/10">
                                                 <div className="flex items-center justify-between px-5 py-2.5 border-b border-danger/8 bg-white/60">
                                                   <div className="flex items-center gap-3">
@@ -562,7 +591,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                   <span className="font-bold">합계 (1대분)</span>
                   <span className="text-text-muted text-xs ml-2">({filtered.length}개 시스템)</span>
                 </td>
-                <td className="px-4 py-4" /><td className="px-4 py-4" />
+                <td className="px-4 py-4" /><td className="px-4 py-4" /><td className="px-4 py-4" />
                 <td className="px-4 py-4 text-center font-medium">
                   {filtered.reduce((s, p) => s + p.coSubParts, 0)}/{filtered.reduce((s, p) => s + p.subParts, 0)}
                 </td>
