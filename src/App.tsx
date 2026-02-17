@@ -809,7 +809,6 @@ function ProjectsView() {
                                   {part.details!.map((sub, j) => {
                                     const hasReasonDetail = !sub.isCo && sub.reasonDetail
                                     const isDetailOpen = expandedDetail === sub.partNo
-                                    const coPossColors = { high: 'text-success bg-success-dim', medium: 'text-warning bg-warning-dim', low: 'text-danger bg-danger-dim', none: 'text-text-subtle bg-secondary' }
                                     const coPossLabels = { high: '높음', medium: '중간', low: '낮음', none: '불가' }
                                     return (
                                       <Fragment key={j}>
