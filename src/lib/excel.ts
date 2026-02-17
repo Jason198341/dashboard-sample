@@ -20,11 +20,12 @@ const SYSTEM_EXAMPLES = [
 const SUBPART_HEADERS = [
   '차종코드*', '시스템명*',
   '부품명*', '부품번호*', 'C/O여부(Y/N)*', 'C/O출처', '비C/O사유',
+  '사유카테고리(디자인/사양변경/법규/신규사양/형상차이/성능)',
   '공급업체*', '지역', '소재비($)*',
 ]
 const SUBPART_EXAMPLES = [
-  ['NX8', '도어 트림', 'Door Trim Upper', '87610-NX001', 'Y', 'VN3', '', 'Motherson', '인도', '12.5'],
-  ['NX8', '도어 트림', 'Door Map Pocket', '87640-NX002', 'N', '', '형상 차이', 'Hyundai Mobis', '한국', '3.2'],
+  ['NX8', '도어 트림', 'Door Trim Upper', '87610-NX001', 'Y', 'VN3', '', '', 'Motherson', '인도', '12.5'],
+  ['NX8', '도어 트림', 'Door Map Pocket', '87640-NX002', 'N', '', '형상 차이', '형상차이', 'Hyundai Mobis', '한국', '3.2'],
 ]
 
 const REASON_HEADERS = [
@@ -198,13 +199,24 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
           continue
         }
         const isCo = str(r[4]).toUpperCase() === 'Y'
+        const nonCoReason = isCo ? undefined : (str(r[6]) || '미입력')
+        const catStr = str(r[7]) as ReasonCategory
+        const validCats: ReasonCategory[] = ['디자인', '사양변경', '법규', '신규사양', '형상차이', '성능']
         group.subs.push({
           partName, partNo, isCo,
           coSource: isCo ? (str(r[5]) || group.baseVehicle) : undefined,
-          nonCoReason: isCo ? undefined : (str(r[6]) || '미입력'),
-          supplier: str(r[7]) || '-',
-          supplierRegion: str(r[8]) || '-',
-          materialCost: num(r[9]),
+          nonCoReason,
+          reasonDetail: !isCo && validCats.includes(catStr) ? {
+            category: catStr,
+            baseSpec: '-', newSpec: '-',
+            diffDescription: nonCoReason || '-',
+            designIntent: '-', impactArea: '-',
+            coPossibility: 'medium' as CoPossibility,
+            additionalCost: 0,
+          } : undefined,
+          supplier: str(r[8]) || '-',
+          supplierRegion: str(r[9]) || '-',
+          materialCost: num(r[10]),
         })
       }
     }

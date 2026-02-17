@@ -2,7 +2,7 @@ import type { VehicleInfo } from '@/types'
 
 export function exportMasterListCsv(vehicle: VehicleInfo) {
   const BOM = '\uFEFF'
-  const header = ['시스템', '기준차종', 'C/O Type', '부품명', '부품번호', 'C/O 여부', '공급업체', '지역', '소재비($)'].join(',')
+  const header = ['시스템', '기준차종', 'C/O Type', '부품명', '부품번호', 'C/O 여부', '비C/O사유', '사유카테고리', '공급업체', '지역', '소재비($)'].join(',')
 
   const rows: string[] = []
   for (const part of vehicle.parts) {
@@ -15,6 +15,8 @@ export function exportMasterListCsv(vehicle: VehicleInfo) {
           sub.partName,
           sub.partNo,
           sub.isCo ? 'Y' : 'N',
+          sub.nonCoReason ?? '',
+          sub.reasonDetail?.category ?? '',
           sub.supplier,
           sub.supplierRegion,
           sub.materialCost,
@@ -25,12 +27,8 @@ export function exportMasterListCsv(vehicle: VehicleInfo) {
         part.system,
         part.baseVehicle,
         part.coType,
-        '-',
-        '-',
-        '-',
-        '-',
-        '-',
-        '-',
+        '-', '-', '-', '', '',
+        '-', '-', '-',
       ].join(','))
     }
   }
