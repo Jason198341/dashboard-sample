@@ -21,18 +21,28 @@ function useDashboardData() {
     const h2Vehicles = vehicles.filter(v => v.half === 'H2')
     const allVehicles = vehicles
 
-    // Global totals across all vehicles
+    // Global totals — single pass over all parts
     const allParts = allVehicles.flatMap(v => v.parts)
-    const totalSubParts = allParts.reduce((s, p) => s + p.subParts, 0)
-    const totalCoSubParts = allParts.reduce((s, p) => s + p.coSubParts, 0)
-    const totalCoCost = allParts.reduce((s, p) => s + p.coCost, 0)
-    const totalNewDevCost = allParts.reduce((s, p) => s + p.newDevCost, 0)
+    let totalSubParts = 0, totalCoSubParts = 0, totalCoCost = 0, totalNewDevCost = 0
+    let fullCo = 0, partialCo = 0, newDev = 0
+    for (const p of allParts) {
+      totalSubParts += p.subParts
+      totalCoSubParts += p.coSubParts
+      totalCoCost += p.coCost
+      totalNewDevCost += p.newDevCost
+      if (p.coType === '1레벨 C/O') fullCo++
+      else if (p.coType === '2레벨 부분 C/O') partialCo++
+      else newDev++
+    }
     const globalCoRate = totalSubParts > 0 ? Math.round((totalCoSubParts / totalSubParts) * 100) : 0
 
-    // H2 (development) vehicle totals — primary C/O analysis target
+    // H2 (development) vehicle totals — single pass
     const h2Parts = h2Vehicles.flatMap(v => v.parts)
-    const h2CoCost = h2Parts.reduce((s, p) => s + p.coCost, 0)
-    const h2NewDevCost = h2Parts.reduce((s, p) => s + p.newDevCost, 0)
+    let h2CoCost = 0, h2NewDevCost = 0
+    for (const p of h2Parts) {
+      h2CoCost += p.coCost
+      h2NewDevCost += p.newDevCost
+    }
     const h2Effect = h2CoCost
 
     // KPI cards
@@ -49,10 +59,7 @@ function useDashboardData() {
         return { name: v.code, rate: totals.coRate }
       })
 
-    // Pie chart — CoType distribution
-    const fullCo = allParts.filter(p => p.coType === '1레벨 C/O').length
-    const partialCo = allParts.filter(p => p.coType === '2레벨 부분 C/O').length
-    const newDev = allParts.filter(p => p.coType === '신규개발').length
+    // Pie chart — CoType distribution (counts computed in single pass above)
     const pieTotal = fullCo + partialCo + newDev
     const pieData = pieTotal > 0 ? [
       { name: '100% C/O', value: Math.round((fullCo / pieTotal) * 100), color: '#3182F6' },

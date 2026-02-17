@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import {
   ChevronRight, Filter, Download, CheckCircle2, X,
 } from 'lucide-react'
@@ -7,7 +7,7 @@ import {
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts'
 
-import type { CoType } from '@/types'
+import type { CoType, ReasonCategory } from '@/types'
 import { getMergedVehicles } from '@/lib/storage'
 import { getAllCodes, getMatrixData, getVehicleTotals } from '@/lib/calculations'
 import { CoTypeBadge } from '@/components/shared/CoTypeBadge'
@@ -16,19 +16,31 @@ import { exportMasterListCsv } from '@/lib/export'
 export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
   const [selectedVehicle, setSelectedVehicle] = useState(initialVehicle ?? 'NX8')
   const [filterType, setFilterType] = useState<CoType | 'all'>('all')
+  const [filterReason, setFilterReason] = useState<ReasonCategory | 'all'>('all')
   const [expandedRow, setExpandedRow] = useState<number | null>(null)
   const [expandedDetail, setExpandedDetail] = useState<string | null>(null)
 
-  const vehicles = getMergedVehicles()
-  const allCodes = getAllCodes(vehicles)
-  const matrixData = getMatrixData(vehicles)
+  const vehicles = useMemo(() => getMergedVehicles(), [])
+  const allCodes = useMemo(() => getAllCodes(vehicles), [vehicles])
+  const matrixData = useMemo(() => getMatrixData(vehicles), [vehicles])
 
   const vehicle = vehicles.find(v => v.code === selectedVehicle)!
-  const totals = getVehicleTotals(vehicle?.parts ?? [])
-  const filtered = filterType === 'all' ? (vehicle?.parts ?? []) : (vehicle?.parts ?? []).filter(p => p.coType === filterType)
-  const filteredCoCost = filtered.reduce((s, p) => s + p.coCost, 0)
-  const filteredNewCost = filtered.reduce((s, p) => s + p.newDevCost, 0)
-  const filteredEffect = filteredNewCost - filteredCoCost
+  const totals = useMemo(() => getVehicleTotals(vehicle?.parts ?? []), [vehicle])
+
+  const filtered = useMemo(() => {
+    let result = vehicle?.parts ?? []
+    if (filterType !== 'all') result = result.filter(p => p.coType === filterType)
+    if (filterReason !== 'all') result = result.filter(p =>
+      p.details?.some(sub => sub.reasonDetail?.category === filterReason)
+    )
+    return result
+  }, [vehicle, filterType, filterReason])
+
+  const { filteredCoCost, filteredNewCost, filteredEffect } = useMemo(() => {
+    let coCost = 0, newCost = 0
+    for (const p of filtered) { coCost += p.coCost; newCost += p.newDevCost }
+    return { filteredCoCost: coCost, filteredNewCost: newCost, filteredEffect: newCost - coCost }
+  }, [filtered])
 
   const h1 = vehicles.filter(v => v.half === 'H1')
   const h2 = vehicles.filter(v => v.half === 'H2')
@@ -40,11 +52,19 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
     newDevCost: p.newDevCost,
   }))
 
-  const coTypePie = [
-    { name: '1레벨 통째 C/O', value: vehicle.parts.filter(p => p.coType === '1레벨 C/O').length, color: '#3182F6' },
-    { name: '2레벨 부분 C/O', value: vehicle.parts.filter(p => p.coType === '2레벨 부분 C/O').length, color: '#93C5FD' },
-    { name: '신규개발', value: vehicle.parts.filter(p => p.coType === '신규개발').length, color: '#E5E7EB' },
-  ]
+  const coTypePie = useMemo(() => {
+    let fullCo = 0, partialCo = 0, newDev = 0
+    for (const p of vehicle.parts) {
+      if (p.coType === '1레벨 C/O') fullCo++
+      else if (p.coType === '2레벨 부분 C/O') partialCo++
+      else newDev++
+    }
+    return [
+      { name: '1레벨 통째 C/O', value: fullCo, color: '#3182F6' },
+      { name: '2레벨 부분 C/O', value: partialCo, color: '#93C5FD' },
+      { name: '신규개발', value: newDev, color: '#E5E7EB' },
+    ]
+  }, [vehicle])
 
   return (
     <>
@@ -57,7 +77,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
               {h1.map(v => (
                 <button
                   key={v.code}
-                  onClick={() => { setSelectedVehicle(v.code); setFilterType('all'); setExpandedRow(null); setExpandedDetail(null) }}
+                  onClick={() => { setSelectedVehicle(v.code); setFilterType('all'); setFilterReason('all'); setExpandedRow(null); setExpandedDetail(null) }}
                   className={`px-3 py-1.5 rounded-[var(--radius-button)] text-sm font-medium transition-colors cursor-pointer ${
                     selectedVehicle === v.code ? 'bg-primary text-white' : 'bg-secondary text-text-muted hover:bg-secondary-hover'
                   }`}
@@ -75,7 +95,7 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
               {h2.map(v => (
                 <button
                   key={v.code}
-                  onClick={() => { setSelectedVehicle(v.code); setFilterType('all'); setExpandedRow(null); setExpandedDetail(null) }}
+                  onClick={() => { setSelectedVehicle(v.code); setFilterType('all'); setFilterReason('all'); setExpandedRow(null); setExpandedDetail(null) }}
                   className={`px-3 py-1.5 rounded-[var(--radius-button)] text-sm font-medium transition-colors cursor-pointer ${
                     selectedVehicle === v.code ? 'bg-primary text-white' : 'bg-secondary text-text-muted hover:bg-secondary-hover'
                   }`}
@@ -211,14 +231,23 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
 
       {/* Master List Table */}
       <div className="bg-surface rounded-[var(--radius-card)] border border-border">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div>
-            <h3 className="text-base font-bold">{vehicle.code} 1레벨 마스터리스트</h3>
-            <p className="text-sm text-text-muted mt-0.5">{vehicle.name} ({vehicle.date}, {vehicle.stage}) | BOM 기반 C/O 확인</p>
+        <div className="px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-base font-bold">{vehicle.code} 1레벨 마스터리스트</h3>
+              <p className="text-sm text-text-muted mt-0.5">{vehicle.name} ({vehicle.date}, {vehicle.stage}) | BOM 기반 C/O 확인</p>
+            </div>
+            <button
+              onClick={() => exportMasterListCsv(vehicle)}
+              className="flex items-center gap-1.5 text-sm text-text-muted bg-secondary px-3 py-1.5 rounded-[var(--radius-button)] hover:bg-secondary-hover transition-colors cursor-pointer"
+            >
+              <Download size={14} /> Export
+            </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
-              <Filter size={14} className="text-text-subtle" />
+              <Filter size={14} className="text-text-subtle shrink-0" />
+              <span className="text-[10px] text-text-subtle font-medium w-10 shrink-0">공용화</span>
               {(['all', '1레벨 C/O', '2레벨 부분 C/O', '신규개발'] as const).map(type => (
                 <button
                   key={type}
@@ -229,12 +258,21 @@ export function ProjectsView({ initialVehicle }: { initialVehicle?: string }) {
                 >{type === 'all' ? '전체' : type}</button>
               ))}
             </div>
-            <button
-              onClick={() => exportMasterListCsv(vehicle)}
-              className="flex items-center gap-1.5 text-sm text-text-muted bg-secondary px-3 py-1.5 rounded-[var(--radius-button)] hover:bg-secondary-hover transition-colors cursor-pointer"
-            >
-              <Download size={14} /> Export
-            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="w-[14px] shrink-0" />
+              <span className="text-[10px] text-text-subtle font-medium w-10 shrink-0">사유</span>
+              {(['all', '디자인', '법규', '사양변경', '성능', '신규사양', '형상차이'] as const).map(reason => (
+                <button
+                  key={reason}
+                  onClick={() => { setFilterReason(reason); setExpandedRow(null); setExpandedDetail(null) }}
+                  className={`text-xs px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
+                    filterReason === reason
+                      ? 'bg-[#EA580C] text-white'
+                      : 'bg-secondary text-text-muted hover:bg-secondary-hover'
+                  }`}
+                >{reason === 'all' ? '전체' : reason}</button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">

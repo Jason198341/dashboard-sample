@@ -16,29 +16,34 @@ function load<T>(key: string): T[] {
 export function getMergedVehicles(): VehicleInfo[] {
   const merged = structuredClone(staticVehicles)
 
+  // Build lookup map for O(1) vehicle access
+  const vehicleMap = new Map(merged.map(v => [v.code, v]))
+
   // 1. User-added vehicles
   const addedVehicles = load<VehicleInfo & { createdAt?: string }>(STORAGE.vehicles)
   for (const av of addedVehicles) {
-    if (merged.find(v => v.code === av.code)) continue
-    merged.push({
+    if (vehicleMap.has(av.code)) continue
+    const newV: VehicleInfo = {
       code: av.code, name: av.name,
       stage: av.stage ?? 'Pre-SOP', date: av.date ?? '',
       half: av.half ?? 'H2', type: av.type ?? '개발',
       parts: [],
-    })
+    }
+    merged.push(newV)
+    vehicleMap.set(av.code, newV)
   }
 
   // 2. User-added parts → push into matching vehicle
   const addedParts = load<{ vehicleCode: string; part: MasterPart }>(STORAGE.parts)
   for (const ap of addedParts) {
-    const vehicle = merged.find(v => v.code === ap.vehicleCode)
+    const vehicle = vehicleMap.get(ap.vehicleCode)
     if (vehicle) vehicle.parts.push(ap.part)
   }
 
   // 3. User-added reasons → attach to matching sub-part
   const addedReasons = load<{ vehicleCode: string; system: string; partNo: string; reason: ReasonDetail }>(STORAGE.reasons)
   for (const ar of addedReasons) {
-    const vehicle = merged.find(v => v.code === ar.vehicleCode)
+    const vehicle = vehicleMap.get(ar.vehicleCode)
     if (!vehicle) continue
     const part = vehicle.parts.find(p => p.system === ar.system)
     if (!part?.details) continue

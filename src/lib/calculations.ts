@@ -24,10 +24,13 @@ export function getMatrixData(vehicles: VehicleInfo[]): Record<string, Record<st
 
 export function getVehicleTotals(parts: MasterPart[]): VehicleTotals {
   const totalSystems = parts.length
-  const totalSubParts = parts.reduce((s, p) => s + p.subParts, 0)
-  const totalCoSubParts = parts.reduce((s, p) => s + p.coSubParts, 0)
-  const totalCoCost = parts.reduce((s, p) => s + p.coCost, 0)
-  const totalNewDevCost = parts.reduce((s, p) => s + p.newDevCost, 0)
+  let totalSubParts = 0, totalCoSubParts = 0, totalCoCost = 0, totalNewDevCost = 0
+  for (const p of parts) {
+    totalSubParts += p.subParts
+    totalCoSubParts += p.coSubParts
+    totalCoCost += p.coCost
+    totalNewDevCost += p.newDevCost
+  }
   const totalEffect = totalNewDevCost - totalCoCost
   const coRate = totalSubParts > 0 ? Math.round((totalCoSubParts / totalSubParts) * 100) : 0
   return { totalSystems, totalSubParts, totalCoSubParts, totalCoCost, totalNewDevCost, totalEffect, coRate }
