@@ -100,6 +100,16 @@ function useDashboardData() {
   }, [])
 }
 
+/** Seed activities shown when no user data exists yet */
+const SEED_ACTIVITIES = [
+  { action: 'NX8 C/O 마스터리스트 초기 구축', time: '시드 데이터' },
+  { action: 'CT5i Console 2레벨 C/O 분석 완료 (12개 부품)', time: '시드 데이터' },
+  { action: 'TX6i IP/Door Trim 3개 시스템 등록', time: '시드 데이터' },
+  { action: 'AZ7i Seat 1레벨 C/O 확정', time: '시드 데이터' },
+  { action: 'DX4i HVAC 비C/O 사유 6건 등록', time: '시드 데이터' },
+  { action: 'EV2i 신규 개발차 등록 (Pre-SOP)', time: '시드 데이터' },
+]
+
 function buildRecentActivity(): { action: string; time: string }[] {
   const activities: { action: string; time: number }[] = []
 
@@ -128,6 +138,9 @@ function buildRecentActivity(): { action: string; time: string }[] {
       })
     }
   } catch { /* ignore parse errors */ }
+
+  // If no user activities, show seed activities
+  if (activities.length === 0) return SEED_ACTIVITIES
 
   activities.sort((a, b) => b.time - a.time)
 
