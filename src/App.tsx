@@ -390,7 +390,7 @@ function ProjectsView() {
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9CA3AF' }} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={(value: number, name: string) => [`$${value.toFixed(1)}`, name === 'coCost' ? '공용화 포함' : '신규개발']}
+                formatter={(value) => [`$${Number(value).toFixed(1)}`]}
               />
               <Bar dataKey="coCost" name="공용화 포함" fill="#3182F6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="newDevCost" name="신규개발" fill="#E5E7EB" radius={[4, 4, 0, 0]} />
