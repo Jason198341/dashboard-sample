@@ -9,23 +9,23 @@ const VEHICLE_HEADERS = ['차종코드*', '차종명*', '단계', '일정(SOP)',
 const VEHICLE_EXAMPLE = ['MY9', 'MY9 Compact SUV', 'Pre-SOP', '27.03', 'H2', '개발']
 
 // Sheet 2: 1레벨 시스템 (1행 = 1시스템)
-const SYSTEM_HEADERS = ['차종코드*', '시스템명*', '기준차종*', 'C/O Type*']
+const SYSTEM_HEADERS = ['차종코드*', '시스템명*', '기준차종*', '시스템 P/No', 'C/O Type*']
 const SYSTEM_EXAMPLES = [
-  ['NX8', '도어 트림', 'VN3', '2레벨 부분 C/O'],
-  ['NX8', 'Seat (Fr)', 'CT5i', '1레벨 C/O'],
-  ['NX8', 'Sunroof (PGS)', '', '신규개발'],
+  ['NX8', '도어 트림', 'VN3', 'VN-DT-MOD', '2레벨 부분 C/O'],
+  ['NX8', 'Seat (Fr)', 'CT5i', 'CT-SF-MOD', '1레벨 C/O'],
+  ['NX8', 'Sunroof (PGS)', '', '', '신규개발'],
 ]
 
 // Sheet 3: 2레벨 부품 (차종코드+시스템명으로 1레벨에 연결)
 const SUBPART_HEADERS = [
   '차종코드*', '시스템명*',
-  '부품명*', '부품번호*', 'C/O여부(Y/N)*', 'C/O출처', '비C/O사유',
+  '부품명*', '부품번호*', 'C/O여부(Y/N)*', 'C/O출처', 'C/O P/No', '비C/O사유',
   '사유카테고리(디자인/사양변경/법규/신규사양/형상차이/성능)',
   '공급업체*', '지역', '소재비($)*',
 ]
 const SUBPART_EXAMPLES = [
-  ['NX8', '도어 트림', 'Door Trim Upper', '87610-NX001', 'Y', 'VN3', '', '', 'Motherson', '인도', '12.5'],
-  ['NX8', '도어 트림', 'Door Map Pocket', '87640-NX002', 'N', '', '형상 차이', '형상차이', 'Hyundai Mobis', '한국', '3.2'],
+  ['NX8', '도어 트림', 'Door Trim Upper', '87610-NX001', 'Y', 'VN3', '87610-VN001', '', '', 'Motherson', '인도', '12.5'],
+  ['NX8', '도어 트림', 'Door Map Pocket', '87640-NX002', 'N', '', '', '형상 차이', '형상차이', 'Hyundai Mobis', '한국', '3.2'],
 ]
 
 const REASON_HEADERS = [
@@ -143,6 +143,7 @@ function parseVehicleSheet(wb: XLSX.WorkBook, errors: string[]): VehicleInfo[] {
       date: str(r[3]) || '',
       half: (half === 'H1' ? 'H1' : 'H2'),
       type: (type === '양산' ? '양산' : '개발'),
+      salesVolume: 10000,
       parts: [],
     })
   }
@@ -154,7 +155,7 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
   const wsSystem = wb.Sheets['1레벨시스템']
   const wsLegacy = wb.Sheets['부품']
 
-  const groups = new Map<string, { vehicleCode: string; system: string; baseVehicle: string; coType: CoType; subs: SubPart[] }>()
+  const groups = new Map<string, { vehicleCode: string; system: string; baseVehicle: string; systemPartNo?: string; coType: CoType; subs: SubPart[] }>()
 
   if (wsSystem) {
     // New 4-sheet format
@@ -168,13 +169,14 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
         errors.push(`[1레벨시스템] ${i + 2}행: 차종코드 또는 시스템명 누락`)
         continue
       }
-      const coTypeStr = str(r[3])
+      const systemPartNo = str(r[3]) || undefined
+      const coTypeStr = str(r[4])
       const coType: CoType = coTypeStr === '1레벨 C/O' ? '1레벨 C/O'
         : coTypeStr === '신규개발' ? '신규개발'
         : '2레벨 부분 C/O'
 
       const key = `${vehicleCode}::${system}`
-      groups.set(key, { vehicleCode, system, baseVehicle: str(r[2]), coType, subs: [] })
+      groups.set(key, { vehicleCode, system, baseVehicle: str(r[2]), systemPartNo, coType, subs: [] })
     }
 
     // Parse 2레벨부품 sheet
@@ -199,12 +201,14 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
           continue
         }
         const isCo = str(r[4]).toUpperCase() === 'Y'
-        const nonCoReason = isCo ? undefined : (str(r[6]) || '미입력')
-        const catStr = str(r[7]) as ReasonCategory
+        const coPartNo = isCo ? (str(r[6]) || undefined) : undefined
+        const nonCoReason = isCo ? undefined : (str(r[7]) || '미입력')
+        const catStr = str(r[8]) as ReasonCategory
         const validCats: ReasonCategory[] = ['디자인', '사양변경', '법규', '신규사양', '형상차이', '성능']
         group.subs.push({
           partName, partNo, isCo,
           coSource: isCo ? (str(r[5]) || group.baseVehicle) : undefined,
+          coPartNo,
           nonCoReason,
           reasonDetail: !isCo && validCats.includes(catStr) ? {
             category: catStr,
@@ -214,9 +218,9 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
             coPossibility: 'medium' as CoPossibility,
             additionalCost: 0,
           } : undefined,
-          supplier: str(r[8]) || '-',
-          supplierRegion: str(r[9]) || '-',
-          materialCost: num(r[10]),
+          supplier: str(r[9]) || '-',
+          supplierRegion: str(r[10]) || '-',
+          materialCost: num(r[11]),
         })
       }
     }
@@ -264,6 +268,7 @@ function parseSystemAndSubParts(wb: XLSX.WorkBook, errors: string[]): { vehicleC
     part: {
       system: g.system,
       baseVehicle: g.baseVehicle,
+      systemPartNo: g.systemPartNo,
       coType: g.coType,
       subParts: g.subs.length,
       coSubParts: g.subs.filter(s => s.isCo).length,

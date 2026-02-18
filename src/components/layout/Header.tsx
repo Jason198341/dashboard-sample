@@ -1,10 +1,13 @@
-import { Search, Bell } from 'lucide-react'
+import { Search, Bell, Globe } from 'lucide-react'
+import { useLang } from '@/lib/i18n'
 
 export function Header({ title, subtitle, onSearchClick }: {
   title: string
   subtitle: string
   onSearchClick: () => void
 }) {
+  const { lang, setLang, t } = useLang()
+
   return (
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-8 shrink-0">
       <div>
@@ -17,9 +20,20 @@ export function Header({ title, subtitle, onSearchClick }: {
           className="h-9 w-56 pl-3 pr-4 rounded-[var(--radius-button)] bg-secondary text-sm text-text-subtle flex items-center gap-2 hover:bg-secondary-hover transition-colors cursor-pointer"
         >
           <Search size={16} />
-          <span className="flex-1 text-left">Search...</span>
+          <span className="flex-1 text-left">{t('header.search')}</span>
           <kbd className="text-[10px] bg-white border border-border px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </button>
+
+        {/* KO/EN Toggle */}
+        <button
+          onClick={() => setLang(lang === 'ko' ? 'en' : 'ko')}
+          className="h-9 flex items-center gap-1.5 px-3 rounded-[var(--radius-button)] bg-secondary text-sm font-medium text-text-muted hover:bg-secondary-hover transition-colors cursor-pointer"
+          title={lang === 'ko' ? 'Switch to English' : '한국어로 전환'}
+        >
+          <Globe size={14} />
+          <span className="text-xs font-bold">{lang === 'ko' ? 'EN' : 'KO'}</span>
+        </button>
+
         <button className="relative w-9 h-9 rounded-[var(--radius-button)] bg-secondary flex items-center justify-center hover:bg-secondary-hover transition-colors">
           <Bell size={16} className="text-text-muted" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full" />

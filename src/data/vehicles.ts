@@ -3,7 +3,7 @@ import type { VehicleInfo } from '@/types'
 export const vehicles: VehicleInfo[] = [
 // ─── H1 양산차 (베이스 DB 구축) ───
 {
-  code: 'VN3', name: 'AY (Sedan-A)', stage: '양산', date: "'24.6", half: 'H1', type: '양산',
+  code: 'VN3', name: 'AY (Sedan-A)', stage: '양산', date: "'24.6", half: 'H1', type: '양산', salesVolume: 120000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: '-', coType: '신규개발', subParts: 16, coSubParts: 0, coCost: 0, newDevCost: 118.4 },
     { system: 'Console', baseVehicle: '-', coType: '신규개발', subParts: 10, coSubParts: 0, coCost: 0, newDevCost: 52.8 },
@@ -18,7 +18,7 @@ export const vehicles: VehicleInfo[] = [
   ],
 },
 {
-  code: 'CT5i', name: 'CT5i (SUV-B)', stage: '양산', date: "'24.1", half: 'H1', type: '양산',
+  code: 'CT5i', name: 'CT5i (SUV-B)', stage: '양산', date: "'24.1", half: 'H1', type: '양산', salesVolume: 85000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: '-', coType: '신규개발', subParts: 18, coSubParts: 0, coCost: 0, newDevCost: 132.5 },
     { system: 'Console', baseVehicle: 'VN3', coType: '2레벨 부분 C/O', subParts: 12, coSubParts: 5, coCost: 48.2, newDevCost: 62.4, details: [
@@ -165,7 +165,7 @@ export const vehicles: VehicleInfo[] = [
   ],
 },
 {
-  code: 'AZ7i', name: 'AZ7i (MPV-C)', stage: '양산', date: "'25.12", half: 'H1', type: '양산',
+  code: 'AZ7i', name: 'AZ7i (MPV-C)', stage: '양산', date: "'25.12", half: 'H1', type: '양산', salesVolume: 65000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: 'CT5i', coType: '2레벨 부분 C/O', subParts: 18, coSubParts: 12, coCost: 98.4, newDevCost: 138.2, details: [
       { partName: 'IP Frame Assy', partNo: 'AZ-IP-001', isCo: true, coSource: 'CT5i', supplier: 'Motherson', supplierRegion: 'Chennai', materialCost: 12.4 },
@@ -431,7 +431,7 @@ export const vehicles: VehicleInfo[] = [
 },
 // ─── H2 개발차 (공용화 현황) ───
 {
-  code: 'DX4i', name: 'DX4i (Crossover)', stage: 'ALL도', date: "'27.8", half: 'H2', type: '개발',
+  code: 'DX4i', name: 'DX4i (Crossover)', stage: 'ALL도', date: "'27.8", half: 'H2', type: '개발', salesVolume: 35000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: 'CT5i', coType: '2레벨 부분 C/O', subParts: 18, coSubParts: 13, coCost: 92.4, newDevCost: 135.6, details: [
       { partName: 'IP Frame Assy', partNo: 'DX-IP-001', isCo: true, coSource: 'CT5i', supplier: 'Motherson', supplierRegion: 'Chennai', materialCost: 12.4 },
@@ -632,7 +632,7 @@ export const vehicles: VehicleInfo[] = [
   ],
 },
 {
-  code: 'EV2i', name: 'EV2i (Electric SUV)', stage: '시작차', date: "'27.1", half: 'H2', type: '개발',
+  code: 'EV2i', name: 'EV2i (Electric SUV)', stage: '시작차', date: "'27.1", half: 'H2', type: '개발', salesVolume: 25000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: 'AZ7i', coType: '2레벨 부분 C/O', subParts: 20, coSubParts: 10, coCost: 108.4, newDevCost: 168.2, details: [
       { partName: 'IP Frame Assy', partNo: 'EV-IP-001', isCo: true, coSource: 'AZ7i', supplier: 'Motherson', supplierRegion: 'Chennai', materialCost: 12.4 },
@@ -809,7 +809,7 @@ export const vehicles: VehicleInfo[] = [
   ],
 },
 {
-  code: 'TX6i', name: 'TX6i (SUV-F)', stage: '시작차', date: "'26.10", half: 'H2', type: '개발',
+  code: 'TX6i', name: 'TX6i (SUV-F)', stage: '시작차', date: "'26.10", half: 'H2', type: '개발', salesVolume: 30000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: 'CT5i', coType: '2레벨 부분 C/O', subParts: 18, coSubParts: 11, coCost: 96.8, newDevCost: 142.4, details: [
       { partName: 'IP Frame Assy', partNo: 'TX-IP-001', isCo: true, coSource: 'CT5i', supplier: 'Motherson', supplierRegion: 'Chennai', materialCost: 12.4 },
@@ -893,7 +893,7 @@ export const vehicles: VehicleInfo[] = [
 },
 // ─── NX8 (기존) ───
 {
-  code: 'NX8', name: 'NX8 (MPV-G)', stage: '모델선정', date: "'28.8", half: 'H2', type: '개발',
+  code: 'NX8', name: 'NX8 (MPV-G)', stage: '모델선정', date: "'28.8", half: 'H2', type: '개발', salesVolume: 45000,
   parts: [
     { system: 'IP (Crash Pad)', baseVehicle: 'CT5i', coType: '2레벨 부분 C/O', subParts: 18, coSubParts: 14, coCost: 88.9, newDevCost: 129.8, details: [
       { partName: 'IP Frame Assy', partNo: 'NX-IP-001', isCo: true, coSource: 'CT5i', supplier: 'Motherson', supplierRegion: 'Chennai', materialCost: 12.4 },
@@ -1087,3 +1087,33 @@ export const vehicles: VehicleInfo[] = [
   ],
 },
 ]
+
+/* ═══ Auto-populate systemPartNo & coPartNo from existing data ═══ */
+const PREFIX: Record<string, string> = {
+  VN3: 'VN', CT5i: 'CT', AZ7i: 'AZ', NX8: 'NX', DX4i: 'DX', EV2i: 'EV', TX6i: 'TX',
+}
+const SYS_ABBR: Record<string, string> = {
+  'IP (Crash Pad)': 'IP', Console: 'CN', 'Door Trim': 'DT',
+  'Door Trim (Fr)': 'DF', 'Door Trim (Rr)': 'DR',
+  'Seat (Fr/Rr)': 'ST', 'Seat (Fr)': 'SF', 'Seat (Rr)': 'RS',
+  'HVAC / Air Vent': 'HV', Headliner: 'HL', 'Pillar Trim': 'PT',
+  'Steering Wheel': 'SW', 'Carpet / Floor': 'CF',
+  'Garnish / Molding': 'GM', 'Package Tray': 'PK',
+  'Battery Cover': 'BC', 'Sunroof (PGS)': 'SR',
+}
+for (const v of vehicles) {
+  for (const p of v.parts) {
+    if (p.baseVehicle !== '-') {
+      const bp = PREFIX[p.baseVehicle] ?? p.baseVehicle.slice(0, 2)
+      const sa = SYS_ABBR[p.system] ?? p.system.slice(0, 2).toUpperCase()
+      p.systemPartNo = `${bp}-${sa}-MOD`
+    }
+    if (!p.details) continue
+    for (const sub of p.details) {
+      if (sub.isCo && sub.coSource) {
+        const sp = PREFIX[sub.coSource] ?? sub.coSource.slice(0, 2)
+        sub.coPartNo = sub.partNo.replace(/^[A-Z]{2}/, sp)
+      }
+    }
+  }
+}

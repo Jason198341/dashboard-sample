@@ -7,9 +7,19 @@ import {
 
 import type { VehicleInfo, ReasonCategory } from '@/types'
 import { getMergedVehicles } from '@/lib/storage'
+import { useLang } from '@/lib/i18n'
 
 const CATEGORIES: ReasonCategory[] = ['디자인', '사양변경', '법규', '신규사양', '형상차이', '성능']
 const COLORS = ['#3182F6', '#F97316', '#8B5CF6', '#10B981', '#EF4444', '#F59E0B']
+
+const REASON_KEYS: Record<ReasonCategory, string> = {
+  '디자인': 'reason.design',
+  '사양변경': 'reason.spec-change',
+  '법규': 'reason.regulation',
+  '신규사양': 'reason.new-spec',
+  '형상차이': 'reason.shape-diff',
+  '성능': 'reason.performance',
+}
 
 function buildParetoData(vehicles: VehicleInfo[]) {
   const counts = new Map<ReasonCategory, { count: number; cost: number }>()
@@ -58,50 +68,53 @@ function buildVehicleReasonData(vehicles: VehicleInfo[]) {
 }
 
 export function AnalyticsView() {
+  const { t } = useLang()
   const vehicles = getMergedVehicles()
   const paretoData = useMemo(() => buildParetoData(vehicles), [vehicles])
   const vehicleData = useMemo(() => buildVehicleReasonData(vehicles), [vehicles])
   const totalNonCo = paretoData.reduce((s, d) => s + d.count, 0)
   const totalCost = paretoData.reduce((s, d) => s + d.cost, 0)
 
+  const rl = (cat: string) => t(REASON_KEYS[cat as ReasonCategory] ?? cat)
+
   return (
     <>
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-6 mb-8">
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <p className="text-sm text-text-muted">총 비C/O 부품</p>
-          <p className="text-3xl font-bold mt-1">{totalNonCo}<span className="text-base font-normal text-text-muted ml-1">건</span></p>
+          <p className="text-sm text-text-muted">{t('anal.totalNonCo')}</p>
+          <p className="text-3xl font-bold mt-1">{totalNonCo}<span className="text-base font-normal text-text-muted ml-1">{t('common.count')}</span></p>
         </div>
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <p className="text-sm text-text-muted">총 추가비용</p>
+          <p className="text-sm text-text-muted">{t('anal.totalCost')}</p>
           <p className="text-3xl font-bold mt-1">${totalCost.toLocaleString()}</p>
         </div>
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <p className="text-sm text-text-muted">주요 사유 (Top 2)</p>
+          <p className="text-sm text-text-muted">{t('anal.topReasons')}</p>
           <p className="text-3xl font-bold mt-1">
-            {paretoData[0]?.category ?? '-'}, {paretoData[1]?.category ?? '-'}
+            {paretoData[0] ? rl(paretoData[0].category) : '-'}, {paretoData[1] ? rl(paretoData[1].category) : '-'}
           </p>
         </div>
       </div>
 
       {/* Pareto Chart */}
       <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6 mb-8">
-        <h3 className="text-base font-bold mb-1">비C/O 사유 Pareto 분석</h3>
-        <p className="text-sm text-text-muted mb-6">카테고리별 건수 + 누적 비율 (%)</p>
+        <h3 className="text-base font-bold mb-1">{t('anal.pareto.title')}</h3>
+        <p className="text-sm text-text-muted mb-6">{t('anal.pareto.sub')}</p>
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={paretoData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-            <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} />
+            <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} tickFormatter={rl} />
             <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} />
             <YAxis yAxisId="right" orientation="right" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} unit="%" />
-            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
+            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} labelFormatter={(label) => rl(String(label))} />
             <Legend />
-            <Bar yAxisId="left" dataKey="count" name="건수" barSize={40} radius={[6, 6, 0, 0]}>
+            <Bar yAxisId="left" dataKey="count" name={t('anal.pareto.count')} barSize={40} radius={[6, 6, 0, 0]}>
               {paretoData.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Bar>
-            <Line yAxisId="right" type="monotone" dataKey="cumPct" name="누적 %" stroke="#EF4444" strokeWidth={2.5} dot={{ r: 4, fill: '#EF4444' }} />
+            <Line yAxisId="right" type="monotone" dataKey="cumPct" name={t('anal.pareto.cumPct')} stroke="#EF4444" strokeWidth={2.5} dot={{ r: 4, fill: '#EF4444' }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -110,16 +123,16 @@ export function AnalyticsView() {
         {/* Category table */}
         <div className="bg-surface rounded-[var(--radius-card)] border border-border overflow-hidden">
           <div className="px-6 py-4 border-b border-border">
-            <h3 className="text-base font-bold">카테고리별 상세</h3>
+            <h3 className="text-base font-bold">{t('anal.detail.title')}</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-secondary">
-                <th className="text-left px-4 py-2.5 font-semibold text-text-muted">사유</th>
-                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">건수</th>
-                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">추가비용</th>
-                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">비율</th>
-                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">누적</th>
+                <th className="text-left px-4 py-2.5 font-semibold text-text-muted">{t('anal.detail.col.reason')}</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">{t('anal.detail.col.count')}</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">{t('anal.detail.col.cost')}</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">{t('anal.detail.col.ratio')}</th>
+                <th className="text-right px-4 py-2.5 font-semibold text-text-muted">{t('anal.detail.col.cumPct')}</th>
               </tr>
             </thead>
             <tbody>
@@ -128,7 +141,7 @@ export function AnalyticsView() {
                   <td className="px-4 py-2.5 font-medium">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                      {d.category}
+                      {rl(d.category)}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">{d.count}</td>
@@ -143,8 +156,8 @@ export function AnalyticsView() {
 
         {/* Vehicle distribution chart */}
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <h3 className="text-base font-bold mb-1">차종별 비C/O 사유 분포</h3>
-          <p className="text-sm text-text-muted mb-4">Stacked Bar</p>
+          <h3 className="text-base font-bold mb-1">{t('anal.vehicle.title')}</h3>
+          <p className="text-sm text-text-muted mb-4">{t('anal.vehicle.sub')}</p>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={vehicleData} barSize={28}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
@@ -153,7 +166,7 @@ export function AnalyticsView() {
               <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB' }} />
               <Legend />
               {CATEGORIES.map((cat, i) => (
-                <Bar key={cat} dataKey={cat} stackId="a" fill={COLORS[i]} radius={i === CATEGORIES.length - 1 ? [4, 4, 0, 0] : undefined} />
+                <Bar key={cat} dataKey={cat} name={rl(cat)} stackId="a" fill={COLORS[i]} radius={i === CATEGORIES.length - 1 ? [4, 4, 0, 0] : undefined} />
               ))}
             </BarChart>
           </ResponsiveContainer>

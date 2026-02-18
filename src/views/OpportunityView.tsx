@@ -13,6 +13,7 @@ import {
   getSharedSystems, getSourceSummaries, getSystemCrossView,
 } from '@/lib/part-trace'
 import type { SharedSystemRow, SystemCrossEntry } from '@/lib/part-trace'
+import { useLang } from '@/lib/i18n'
 
 const CO_COLORS: Record<CoType, string> = {
   '1레벨 C/O': '#10B981',
@@ -27,6 +28,7 @@ const SOURCE_COLORS = ['#3182F6', '#8B5CF6', '#F97316', '#10B981', '#EF4444', '#
    ═══════════════════════════════════════════════ */
 
 export function OpportunityView() {
+  const { t, lang } = useLang()
   const allRows = useMemo(() => getSharedSystems(), [])
   const sources = useMemo(() => getSourceSummaries(allRows), [allRows])
   const [sourceFilter, setSourceFilter] = useState<string | 'all'>('all')
@@ -47,9 +49,20 @@ export function OpportunityView() {
     fill: SOURCE_COLORS[i % SOURCE_COLORS.length],
   }))
 
+  const coTypeLabel = (ct: CoType) => {
+    const m: Record<CoType, string> = {
+      '1레벨 C/O': t('cotype.1level'),
+      '2레벨 부분 C/O': t('cotype.2level'),
+      '신규개발': t('cotype.new'),
+    }
+    return m[ct]
+  }
+
   function exportCsv() {
     const BOM = '\uFEFF'
-    const header = ['적용차종', '시스템', '원본차종', 'C/O레벨', 'C/O부품', '총부품', '공용화비용($)', '신규개발비용($)', '절감기여($)'].join(',')
+    const header = lang === 'ko'
+      ? ['적용차종', '시스템', '원본차종', 'C/O레벨', 'C/O부품', '총부품', '공용화비용($)', '신규개발비용($)', '절감기여($)'].join(',')
+      : ['Target Vehicle', 'System', 'Source Vehicle', 'C/O Level', 'C/O Parts', 'Total Parts', 'C/O Cost($)', 'New Dev Cost($)', 'Savings($)'].join(',')
     const rows = filtered.map(r => [
       r.vehicleCode, r.system, r.sourceVehicle, r.coType,
       r.coParts, r.totalParts, r.coCost, r.newDevCost, r.savings,
@@ -69,27 +82,27 @@ export function OpportunityView() {
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-4 gap-6 mb-8">
         <SummaryCard
-          label="원본차종 (Donor)"
-          value={`${sources.length}개`}
-          sub="C/O 소스 차종 수"
+          label={t('opp.donor')}
+          value={`${sources.length}${t('common.unit')}`}
+          sub={t('opp.donorSub')}
           color="#8B5CF6"
         />
         <SummaryCard
-          label="공용화 시스템"
-          value={`${allRows.length}건`}
-          sub={`${totalSharedParts}개 부품 공용`}
+          label={t('opp.sharedSystems')}
+          value={`${allRows.length}${t('common.count')}`}
+          sub={`${totalSharedParts}${t('opp.partsCo')}`}
           color="#3182F6"
         />
         <SummaryCard
-          label="총 절감 기여"
+          label={t('opp.totalSavings')}
           value={`$${totalSavings.toFixed(1)}`}
-          sub="신규개발 대비"
+          sub={t('opp.vsNewDev')}
           color="#10B981"
         />
         <SummaryCard
-          label="평균 절감/시스템"
+          label={t('opp.avgSavings')}
           value={allRows.length > 0 ? `$${(totalSavings / allRows.length).toFixed(1)}` : '$0'}
-          sub="시스템당 평균"
+          sub={t('opp.perSystem')}
           color="#F97316"
         />
       </div>
@@ -97,8 +110,8 @@ export function OpportunityView() {
       {/* ── Source Vehicle Cards + Chart ── */}
       <div className="grid grid-cols-3 gap-6 mb-8">
         <div className="col-span-2 bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <h3 className="text-base font-bold mb-1">원본차종별 절감 기여</h3>
-          <p className="text-sm text-text-muted mb-4">각 양산차가 개발차에 기여한 원가 절감 ($/대)</p>
+          <h3 className="text-base font-bold mb-1">{t('opp.chart.title')}</h3>
+          <p className="text-sm text-text-muted mb-4">{t('opp.chart.sub')}</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData} barSize={36}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
@@ -106,7 +119,7 @@ export function OpportunityView() {
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} unit="$" />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                formatter={(v: number | undefined) => [`$${v ?? 0}`, '절감 기여']}
+                formatter={(v: number | undefined) => [`$${v ?? 0}`, t('opp.chart.tooltip')]}
               />
               <Bar dataKey="savings" radius={[6, 6, 0, 0]}>
                 {chartData.map((d, i) => <Cell key={i} fill={d.fill} />)}
@@ -117,14 +130,14 @@ export function OpportunityView() {
 
         {/* Source filter pills */}
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6 flex flex-col">
-          <h3 className="text-base font-bold mb-4">원본차종 필터</h3>
+          <h3 className="text-base font-bold mb-4">{t('opp.filter.title')}</h3>
           <div className="flex flex-col gap-2 mb-4 flex-1">
             <button
               onClick={() => setSourceFilter('all')}
               className={`px-4 py-2 rounded-[var(--radius-button)] text-sm font-medium text-left transition-colors cursor-pointer
                 ${sourceFilter === 'all' ? 'bg-primary text-white' : 'bg-secondary text-text-muted hover:bg-secondary-hover'}`}
             >
-              전체 ({allRows.length}건)
+              {t('opp.filter.all')} ({allRows.length}{t('common.count')})
             </button>
             {sources.map((s, i) => (
               <button
@@ -136,9 +149,9 @@ export function OpportunityView() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{s.code}</span>
-                  <span className="text-xs opacity-80">{s.systemsShared}시스템 · ${s.totalSavings.toFixed(0)}</span>
+                  <span className="text-xs opacity-80">{s.systemsShared}{t('opp.filter.systemSuffix')} · ${s.totalSavings.toFixed(0)}</span>
                 </div>
-                <div className="text-xs opacity-70 mt-0.5">{s.adoptedByVehicles}개 차종에서 사용</div>
+                <div className="text-xs opacity-70 mt-0.5">{s.adoptedByVehicles}{t('opp.filter.vehicleSuffix')}</div>
               </button>
             ))}
           </div>
@@ -156,23 +169,23 @@ export function OpportunityView() {
       <div className="bg-surface rounded-[var(--radius-card)] border border-border overflow-hidden">
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold">부품 공용화 추적 (Part Traceability)</h3>
-            <p className="text-sm text-text-muted mt-0.5">클릭하여 2레벨 부품 상세 + 타 차종 비교 확인</p>
+            <h3 className="text-base font-bold">{t('opp.table.title')}</h3>
+            <p className="text-sm text-text-muted mt-0.5">{t('opp.table.sub')}</p>
           </div>
-          <span className="text-sm text-text-muted">{filtered.length}건</span>
+          <span className="text-sm text-text-muted">{filtered.length}{t('common.count')}</span>
         </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-secondary">
               <th className="w-8 px-3 py-3" />
-              <th className="text-left px-4 py-3 font-semibold text-text-muted">적용차종</th>
-              <th className="text-left px-4 py-3 font-semibold text-text-muted">시스템</th>
-              <th className="text-left px-4 py-3 font-semibold text-text-muted">원본</th>
-              <th className="text-left px-4 py-3 font-semibold text-text-muted">C/O 레벨</th>
-              <th className="text-center px-4 py-3 font-semibold text-text-muted">C/O 부품</th>
-              <th className="text-right px-4 py-3 font-semibold text-text-muted">공용화비($/대)</th>
-              <th className="text-right px-4 py-3 font-semibold text-text-muted">신규시($/대)</th>
-              <th className="text-right px-4 py-3 font-semibold text-text-muted">절감기여($)</th>
+              <th className="text-left px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.target')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.system')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.source')}</th>
+              <th className="text-left px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.level')}</th>
+              <th className="text-center px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.parts')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.coCost')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.newCost')}</th>
+              <th className="text-right px-4 py-3 font-semibold text-text-muted">{t('opp.table.col.savings')}</th>
             </tr>
           </thead>
           <tbody>
@@ -185,13 +198,15 @@ export function OpportunityView() {
                   row={row}
                   isExpanded={isExpanded}
                   onToggle={() => setExpanded(isExpanded ? null : key)}
+                  coTypeLabel={coTypeLabel}
+                  t={t}
                 />
               )
             })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-text-muted">
-                  해당 조건의 공용화 데이터가 없습니다
+                  {t('opp.table.empty')}
                 </td>
               </tr>
             )}
@@ -219,10 +234,12 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
   )
 }
 
-function SystemRow({ row, isExpanded, onToggle }: {
+function SystemRow({ row, isExpanded, onToggle, coTypeLabel, t }: {
   row: SharedSystemRow
   isExpanded: boolean
   onToggle: () => void
+  coTypeLabel: (ct: CoType) => string
+  t: (key: string) => string
 }) {
   const hasDetail = row.coType === '2레벨 부분 C/O' && row.details && row.details.length > 0
   const clickable = hasDetail
@@ -257,7 +274,7 @@ function SystemRow({ row, isExpanded, onToggle }: {
           </div>
         </td>
         <td className="px-4 py-3">
-          <CoTypeBadge type={row.coType} />
+          <LocalCoTypeBadge type={row.coType} label={coTypeLabel(row.coType)} />
         </td>
         <td className="px-4 py-3 text-center">
           <span className="font-bold">{row.coParts}</span>
@@ -274,7 +291,7 @@ function SystemRow({ row, isExpanded, onToggle }: {
       {isExpanded && hasDetail && (
         <tr>
           <td colSpan={9} className="p-0">
-            <DetailPanel row={row} />
+            <DetailPanel row={row} t={t} coTypeLabel={coTypeLabel} />
           </td>
         </tr>
       )}
@@ -282,7 +299,7 @@ function SystemRow({ row, isExpanded, onToggle }: {
   )
 }
 
-function CoTypeBadge({ type }: { type: CoType }) {
+function LocalCoTypeBadge({ type, label }: { type: CoType; label: string }) {
   const color = CO_COLORS[type]
   return (
     <span
@@ -291,7 +308,7 @@ function CoTypeBadge({ type }: { type: CoType }) {
     >
       {type === '1레벨 C/O' && <Layers size={10} />}
       {type === '2레벨 부분 C/O' && <Package size={10} />}
-      {type}
+      {label}
     </span>
   )
 }
@@ -300,7 +317,7 @@ function CoTypeBadge({ type }: { type: CoType }) {
    Detail Panel (expanded)
    ═══════════════════════════════════════════════ */
 
-function DetailPanel({ row }: { row: SharedSystemRow }) {
+function DetailPanel({ row, t, coTypeLabel }: { row: SharedSystemRow; t: (key: string) => string; coTypeLabel: (ct: CoType) => string }) {
   const crossView = useMemo(() => getSystemCrossView(row.system), [row.system])
 
   return (
@@ -311,42 +328,42 @@ function DetailPanel({ row }: { row: SharedSystemRow }) {
           <div className="flex items-center gap-2 mb-3">
             <GitBranch size={14} className="text-primary" />
             <h4 className="text-sm font-bold">
-              {row.system} — 2레벨 부품 상세
+              {row.system} — {t('opp.detail.title')}
             </h4>
             <span className="text-xs text-text-muted">
-              ({row.vehicleCode} 기준)
+              ({row.vehicleCode} {t('opp.detail.basis')})
             </span>
           </div>
           <div className="bg-white rounded-lg border border-border overflow-hidden">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-secondary">
-                  <th className="text-left px-3 py-2 font-semibold text-text-muted">부품명</th>
-                  <th className="text-left px-3 py-2 font-semibold text-text-muted">파트넘버</th>
-                  <th className="text-center px-3 py-2 font-semibold text-text-muted">C/O</th>
-                  <th className="text-left px-3 py-2 font-semibold text-text-muted">출처/사유</th>
-                  <th className="text-left px-3 py-2 font-semibold text-text-muted">협력사</th>
-                  <th className="text-right px-3 py-2 font-semibold text-text-muted">소재비($)</th>
+                  <th className="text-left px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.partName')}</th>
+                  <th className="text-left px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.partNo')}</th>
+                  <th className="text-center px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.co')}</th>
+                  <th className="text-left px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.source')}</th>
+                  <th className="text-left px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.supplier')}</th>
+                  <th className="text-right px-3 py-2 font-semibold text-text-muted">{t('opp.detail.col.cost')}</th>
                 </tr>
               </thead>
               <tbody>
                 {(row.details ?? []).map((sub, i) => (
-                  <SubPartRow key={i} sub={sub} baseVehicle={row.sourceVehicle} />
+                  <SubPartRow key={i} sub={sub} baseVehicle={row.sourceVehicle} t={t} />
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-secondary border-t border-border font-medium">
                   <td className="px-3 py-2" colSpan={2}>
-                    소계
+                    {t('opp.detail.subtotal')}
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span className="text-emerald-600">{row.coParts}</span>
                     <span className="text-text-muted"> / {row.totalParts}</span>
                   </td>
                   <td className="px-3 py-2 text-text-muted">
-                    C/O율 {row.totalParts > 0 ? Math.round((row.coParts / row.totalParts) * 100) : 0}%
-                    {' | 비C/O '}
-                    {row.totalParts - row.coParts}건
+                    {t('opp.detail.coRateLabel')} {row.totalParts > 0 ? Math.round((row.coParts / row.totalParts) * 100) : 0}%
+                    {' | '}{t('opp.detail.nonCo')}{' '}
+                    {row.totalParts - row.coParts}{t('common.count')}
                   </td>
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2 text-right">
@@ -362,8 +379,8 @@ function DetailPanel({ row }: { row: SharedSystemRow }) {
         <div className="col-span-2">
           <div className="flex items-center gap-2 mb-3">
             <Layers size={14} className="text-violet-500" />
-            <h4 className="text-sm font-bold">타 차종 비교</h4>
-            <span className="text-xs text-text-muted">같은 시스템</span>
+            <h4 className="text-sm font-bold">{t('opp.detail.cross.title')}</h4>
+            <span className="text-xs text-text-muted">{t('opp.detail.cross.sub')}</span>
           </div>
           <div className="space-y-2">
             {crossView.map(entry => (
@@ -371,6 +388,8 @@ function DetailPanel({ row }: { row: SharedSystemRow }) {
                 key={entry.vehicleCode}
                 entry={entry}
                 isCurrentRow={entry.vehicleCode === row.vehicleCode}
+                coTypeLabel={coTypeLabel}
+                t={t}
               />
             ))}
           </div>
@@ -380,7 +399,7 @@ function DetailPanel({ row }: { row: SharedSystemRow }) {
   )
 }
 
-function SubPartRow({ sub, baseVehicle }: { sub: SubPart; baseVehicle: string }) {
+function SubPartRow({ sub, baseVehicle, t }: { sub: SubPart; baseVehicle: string; t: (key: string) => string }) {
   return (
     <tr className="border-t border-border hover:bg-blue-50/30 transition-colors">
       <td className="px-3 py-2">{sub.partName}</td>
@@ -394,7 +413,7 @@ function SubPartRow({ sub, baseVehicle }: { sub: SubPart; baseVehicle: string })
         ) : (
           <span className="inline-flex items-center gap-0.5 text-orange-500 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-            신규
+            {t('common.new')}
           </span>
         )}
       </td>
@@ -413,8 +432,11 @@ function SubPartRow({ sub, baseVehicle }: { sub: SubPart; baseVehicle: string })
   )
 }
 
-function CrossVehicleCard({ entry, isCurrentRow }: { entry: SystemCrossEntry; isCurrentRow: boolean }) {
+function CrossVehicleCard({ entry, isCurrentRow, coTypeLabel, t }: {
+  entry: SystemCrossEntry; isCurrentRow: boolean; coTypeLabel: (ct: CoType) => string; t: (key: string) => string
+}) {
   const isSource = entry.baseVehicle === '-' || !entry.baseVehicle
+  const vtypeLabel = entry.vehicleType === '양산' ? t('entry.vehicle.vtype.mass') : t('entry.vehicle.vtype.dev')
   return (
     <div className={`rounded-lg border p-3 text-xs transition-colors
       ${isCurrentRow ? 'border-primary/40 bg-primary/5' : 'border-border bg-white'}`}>
@@ -423,17 +445,17 @@ function CrossVehicleCard({ entry, isCurrentRow }: { entry: SystemCrossEntry; is
           <span className="font-bold">{entry.vehicleCode}</span>
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium
             ${entry.vehicleType === '양산' ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
-            {entry.vehicleType}
+            {vtypeLabel}
           </span>
-          {isCurrentRow && <span className="text-[10px] text-primary font-medium">현재</span>}
+          {isCurrentRow && <span className="text-[10px] text-primary font-medium">{t('opp.detail.cross.current')}</span>}
         </div>
-        <CoTypeBadge type={entry.coType} />
+        <LocalCoTypeBadge type={entry.coType} label={coTypeLabel(entry.coType)} />
       </div>
       <div className="flex items-center justify-between text-text-muted">
         <span>
           {isSource
-            ? '원본 (신규개발)'
-            : <>기준: {entry.baseVehicle} → C/O율 <span className="font-bold text-text">{entry.coRate}%</span> ({entry.coParts}/{entry.totalParts})</>
+            ? t('opp.detail.cross.source')
+            : <>{t('opp.detail.cross.base')} {entry.baseVehicle} → {t('opp.detail.cross.coRate')} <span className="font-bold text-text">{entry.coRate}%</span> ({entry.coParts}/{entry.totalParts})</>
           }
         </span>
         {!isSource && entry.newDevCost > entry.coCost && (

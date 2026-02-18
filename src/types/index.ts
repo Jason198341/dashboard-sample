@@ -25,6 +25,7 @@ export interface SubPart {
   partNo: string
   isCo: boolean
   coSource?: string
+  coPartNo?: string
   nonCoReason?: string
   reasonDetail?: ReasonDetail
   supplier: string
@@ -35,6 +36,7 @@ export interface SubPart {
 export interface MasterPart {
   system: string
   baseVehicle: string
+  systemPartNo?: string
   coType: CoType
   subParts: number
   coSubParts: number
@@ -50,6 +52,7 @@ export interface VehicleInfo {
   date: string
   half: 'H1' | 'H2'
   type: '양산' | '개발'
+  salesVolume: number
   parts: MasterPart[]
 }
 

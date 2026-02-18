@@ -5,16 +5,17 @@ import type { CoType, ReasonCategory, CoPossibility, SubPart } from '@/types'
 import { getMergedVehicles } from '@/lib/storage'
 import { downloadTemplate, parseExcelFile } from '@/lib/excel'
 import type { ParsedExcel } from '@/lib/excel'
+import { useLang } from '@/lib/i18n'
 
 /* ─── Constants ─── */
 
 type EntryTab = 'vehicle' | 'part' | 'reason' | 'excel'
 
-const TABS: { id: EntryTab; label: string; icon: typeof Car }[] = [
-  { id: 'vehicle', label: '차종 등록', icon: Car },
-  { id: 'part', label: '부품 등록', icon: Package },
-  { id: 'reason', label: '비C/O 사유 입력', icon: FileText },
-  { id: 'excel', label: '엑셀 등록', icon: FileSpreadsheet },
+const TAB_IDS: { id: EntryTab; labelKey: string; icon: typeof Car }[] = [
+  { id: 'vehicle', labelKey: 'entry.tab.vehicle', icon: Car },
+  { id: 'part', labelKey: 'entry.tab.part', icon: Package },
+  { id: 'reason', labelKey: 'entry.tab.reason', icon: FileText },
+  { id: 'excel', labelKey: 'entry.tab.excel', icon: FileSpreadsheet },
 ]
 
 const STAGES = ['Pre-SOP', 'SOP', '양산']
@@ -24,6 +25,34 @@ const CO_TYPES: CoType[] = ['1레벨 C/O', '2레벨 부분 C/O', '신규개발']
 const CATEGORIES: ReasonCategory[] = ['디자인', '사양변경', '법규', '신규사양', '형상차이', '성능']
 const POSSIBILITIES: CoPossibility[] = ['high', 'medium', 'low', 'none']
 const REGIONS = ['한국', '인도', '중국', '일본', '독일', '미국', '기타']
+
+/* ─── Translation lookup maps (data value → dict key) ─── */
+
+const REGION_KEYS: Record<string, string> = {
+  '한국': 'region.korea', '인도': 'region.india', '중국': 'region.china',
+  '일본': 'region.japan', '독일': 'region.germany', '미국': 'region.usa', '기타': 'region.other',
+}
+
+const CO_TYPE_KEYS: Record<string, string> = {
+  '1레벨 C/O': 'cotype.1level', '2레벨 부분 C/O': 'cotype.2level', '신규개발': 'cotype.new',
+}
+
+const REASON_KEYS: Record<string, string> = {
+  '디자인': 'reason.design', '사양변경': 'reason.spec-change', '법규': 'reason.regulation',
+  '신규사양': 'reason.new-spec', '형상차이': 'reason.shape-diff', '성능': 'reason.performance',
+}
+
+const VTYPE_KEYS: Record<string, string> = {
+  '양산': 'entry.vehicle.vtype.mass', '개발': 'entry.vehicle.vtype.dev',
+}
+
+const POSS_KEYS: Record<string, string> = {
+  high: 'poss.high', medium: 'poss.medium', low: 'poss.low', none: 'poss.none',
+}
+
+const POSS_DESC_KEYS: Record<string, string> = {
+  high: 'poss.high.desc', medium: 'poss.medium.desc', low: 'poss.low.desc', none: 'poss.none.desc',
+}
 
 const STORAGE = {
   vehicles: 'ds_added_vehicles',
@@ -85,6 +114,7 @@ function emptyRow(): SubPartRow {
 /* ─── Main Component ─── */
 
 export function DataEntryView() {
+  const { t } = useLang()
   const [tab, setTab] = useState<EntryTab>('vehicle')
   const [toast, setToast] = useState<string | null>(null)
 
@@ -97,17 +127,17 @@ export function DataEntryView() {
     <>
       {/* Tab bar */}
       <div className="flex gap-2 mb-8">
-        {TABS.map(t => {
-          const Icon = t.icon
+        {TAB_IDS.map(tb => {
+          const Icon = tb.icon
           return (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-[var(--radius-button)] text-sm font-medium transition-colors cursor-pointer
-                ${tab === t.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:bg-secondary'}`}
+                ${tab === tb.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:bg-secondary'}`}
             >
               <Icon size={16} />
-              {t.label}
+              {t(tb.labelKey)}
             </button>
           )
         })}
@@ -124,10 +154,11 @@ export function DataEntryView() {
 }
 
 /* ═══════════════════════════════════════════════
-   Tab 1: 차종 등록
+   Tab 1: Vehicle Registration
    ═══════════════════════════════════════════════ */
 
 function VehicleForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const { t, lang } = useLang()
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [stage, setStage] = useState('Pre-SOP')
@@ -137,13 +168,15 @@ function VehicleForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 
   const recent = loadEntries<{ code: string; name: string; date: string }>(STORAGE.vehicles)
 
+  const stageLabel = (s: string) => s === '양산' ? t('entry.vehicle.vtype.mass') : s
+
   function handleSubmit() {
     if (!code.trim() || !name.trim()) return
     saveEntry(STORAGE.vehicles, {
       code: code.trim(), name: name.trim(), stage, date: date.trim(),
       half, type: vtype, parts: [], createdAt: new Date().toISOString(),
     })
-    onSuccess(`${code} 차종이 등록되었습니다`)
+    onSuccess(`${code} ${t('entry.vehicle.toast')}`)
     setCode(''); setName(''); setDate('')
   }
 
@@ -151,32 +184,32 @@ function VehicleForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
     <div className="grid grid-cols-3 gap-6">
       {/* Form */}
       <div className="col-span-2 bg-surface rounded-[var(--radius-card)] border border-border p-6">
-        <h3 className="text-base font-bold mb-1">신규 차종 등록</h3>
-        <p className="text-sm text-text-muted mb-6">개발 또는 양산 차종 정보를 입력합니다</p>
+        <h3 className="text-base font-bold mb-1">{t('entry.vehicle.title')}</h3>
+        <p className="text-sm text-text-muted mb-6">{t('entry.vehicle.desc')}</p>
 
         <div className="grid grid-cols-2 gap-5">
-          <Field label="차종 코드" required>
-            <input className={inputCls} placeholder="예: MY9" value={code} onChange={e => setCode(e.target.value)} />
+          <Field label={t('entry.vehicle.code')} required>
+            <input className={inputCls} placeholder={lang === 'ko' ? '예: MY9' : 'e.g.: MY9'} value={code} onChange={e => setCode(e.target.value)} />
           </Field>
-          <Field label="차종명" required>
-            <input className={inputCls} placeholder="예: MY9 Compact SUV" value={name} onChange={e => setName(e.target.value)} />
+          <Field label={t('entry.vehicle.name')} required>
+            <input className={inputCls} placeholder={lang === 'ko' ? '예: MY9 Compact SUV' : 'e.g.: MY9 Compact SUV'} value={name} onChange={e => setName(e.target.value)} />
           </Field>
-          <Field label="개발 단계">
+          <Field label={t('entry.vehicle.stage')}>
             <select className={selectCls} value={stage} onChange={e => setStage(e.target.value)}>
-              {STAGES.map(s => <option key={s}>{s}</option>)}
+              {STAGES.map(s => <option key={s} value={s}>{stageLabel(s)}</option>)}
             </select>
           </Field>
-          <Field label="일정 (SOP)">
-            <input className={inputCls} placeholder="예: 26.09" value={date} onChange={e => setDate(e.target.value)} />
+          <Field label={t('entry.vehicle.sop')}>
+            <input className={inputCls} placeholder={lang === 'ko' ? '예: 26.09' : 'e.g.: 26.09'} value={date} onChange={e => setDate(e.target.value)} />
           </Field>
-          <Field label="반기">
+          <Field label={t('entry.vehicle.half')}>
             <select className={selectCls} value={half} onChange={e => setHalf(e.target.value as 'H1' | 'H2')}>
               {HALVES.map(h => <option key={h}>{h}</option>)}
             </select>
           </Field>
-          <Field label="구분">
+          <Field label={t('entry.vehicle.vtype')}>
             <select className={selectCls} value={vtype} onChange={e => setVtype(e.target.value as '양산' | '개발')}>
-              {VTYPES.map(t => <option key={t}>{t}</option>)}
+              {VTYPES.map(v => <option key={v} value={v}>{t(VTYPE_KEYS[v])}</option>)}
             </select>
           </Field>
         </div>
@@ -186,15 +219,15 @@ function VehicleForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
           disabled={!code.trim() || !name.trim()}
           className="mt-6 px-6 py-2.5 bg-primary text-white rounded-[var(--radius-button)] text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          등록하기
+          {t('entry.vehicle.submit')}
         </button>
       </div>
 
       {/* Recent entries */}
       <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-        <h3 className="text-base font-bold mb-4">최근 등록</h3>
+        <h3 className="text-base font-bold mb-4">{t('entry.vehicle.recent')}</h3>
         {recent.length === 0 ? (
-          <p className="text-sm text-text-muted">등록된 차종이 없습니다</p>
+          <p className="text-sm text-text-muted">{t('entry.vehicle.empty')}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {recent.slice(0, 8).map((v, i) => (
@@ -214,22 +247,23 @@ function VehicleForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 }
 
 /* ═══════════════════════════════════════════════
-   Tab 2: 부품 등록 (2-Step Wizard)
-   Step 1 → 1레벨 시스템 정의
-   Step 2 → 2레벨 세부 부품 등록
+   Tab 2: Part Registration (2-Step Wizard)
+   Step 1 → L1 System Definition
+   Step 2 → L2 Sub-Part Registration
    ═══════════════════════════════════════════════ */
 
 function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const { t, lang } = useLang()
   const vehicles = getMergedVehicles()
   const [step, setStep] = useState<1 | 2>(1)
 
-  // Step 1: 1레벨 시스템 정보
+  // Step 1: L1 system info
   const [vehicleCode, setVehicleCode] = useState(vehicles[0]?.code ?? '')
   const [system, setSystem] = useState('')
   const [baseVehicle, setBaseVehicle] = useState('')
   const [coType, setCoType] = useState<CoType>('2레벨 부분 C/O')
 
-  // Step 2: 2레벨 부품 목록
+  // Step 2: L2 part list
   const [subParts, setSubParts] = useState<SubPartRow[]>([emptyRow()])
 
   function addRow() { setSubParts(prev => [...prev, emptyRow()]) }
@@ -241,6 +275,15 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
   const canProceed = system.trim() && baseVehicle.trim()
   const selectedVehicle = vehicles.find(v => v.code === vehicleCode)
 
+  const coTypeDesc = (ct: CoType) => {
+    const m: Record<CoType, string> = {
+      '1레벨 C/O': t('entry.part.coType.full'),
+      '2레벨 부분 C/O': t('entry.part.coType.partial'),
+      '신규개발': t('entry.part.coType.new'),
+    }
+    return m[ct]
+  }
+
   function handleSubmit() {
     if (!canProceed) return
     const validSubs = subParts.filter(s => s.partName.trim() && s.partNo.trim())
@@ -250,7 +293,7 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
       partNo: s.partNo.trim(),
       isCo: s.isCo,
       coSource: s.isCo ? s.coSource.trim() || baseVehicle.trim() : undefined,
-      nonCoReason: s.isCo ? undefined : '사유 미입력',
+      nonCoReason: s.isCo ? undefined : (lang === 'ko' ? '사유 미입력' : 'Reason not entered'),
       supplier: s.supplier.trim(),
       supplierRegion: s.supplierRegion,
       materialCost: s.materialCost,
@@ -267,7 +310,11 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
       },
       createdAt: new Date().toISOString(),
     })
-    onSuccess(`${system} 시스템 (${details.length}개 부품)이 ${vehicleCode}에 등록되었습니다`)
+    onSuccess(
+      lang === 'ko'
+        ? `${system} 시스템 (${details.length}개 부품)이 ${vehicleCode}에 등록되었습니다`
+        : `${system} system (${details.length} parts) registered to ${vehicleCode}`
+    )
     setStep(1); setSystem(''); setBaseVehicle('')
     setSubParts([emptyRow()])
   }
@@ -280,51 +327,49 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
           step === 1 ? 'bg-primary text-white' : 'bg-success-dim text-success'
         }`}>
           {step > 1 ? <Check size={14} /> : <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">1</span>}
-          1레벨 시스템 정의
+          {t('entry.part.step1.title')}
         </div>
         <ChevronRight size={16} className="text-text-subtle" />
         <div className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-button)] text-sm font-medium ${
           step === 2 ? 'bg-primary text-white' : 'bg-secondary text-text-muted'
         }`}>
           <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">2</span>
-          2레벨 부품 등록
+          {t('entry.part.step2.title')}
         </div>
       </div>
 
-      {/* ─── Step 1: 1레벨 시스템 ─── */}
+      {/* ─── Step 1: L1 System ─── */}
       {step === 1 && (
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full bg-primary" />
-            <h3 className="text-base font-bold">Step 1: 1레벨 시스템 정의</h3>
+            <h3 className="text-base font-bold">{t('entry.part.step1.full')}</h3>
           </div>
           <p className="text-sm text-text-muted mb-6 ml-4">
-            상위 시스템을 먼저 정의합니다. 2레벨 부품은 반드시 이 시스템에 소속됩니다.
+            {t('entry.part.step1.desc')}
           </p>
 
           <div className="grid grid-cols-2 gap-5 mb-5">
-            <Field label="대상 차종" required>
+            <Field label={t('entry.part.vehicle')} required>
               <select className={selectCls} value={vehicleCode} onChange={e => setVehicleCode(e.target.value)}>
                 {vehicles.map(v => <option key={v.code} value={v.code}>{v.code} – {v.name}</option>)}
               </select>
             </Field>
-            <Field label="C/O Type" required>
+            <Field label={t('entry.part.coTypeLabel')} required>
               <select className={selectCls} value={coType} onChange={e => setCoType(e.target.value as CoType)}>
-                {CO_TYPES.map(t => <option key={t}>{t}</option>)}
+                {CO_TYPES.map(ct => <option key={ct} value={ct}>{t(CO_TYPE_KEYS[ct])}</option>)}
               </select>
               <span className="text-xs text-text-subtle mt-1">
-                {coType === '1레벨 C/O' ? '시스템 전체를 기준차종에서 그대로 가져옴' :
-                 coType === '2레벨 부분 C/O' ? '일부 부품만 공용화, 나머지는 신규' :
-                 '전체 신규 개발'}
+                {coTypeDesc(coType)}
               </span>
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-5 mb-6">
-            <Field label="1레벨 시스템명" required>
-              <input className={inputCls} placeholder="예: 도어 트림, 좌석, 계기판" value={system} onChange={e => setSystem(e.target.value)} />
+            <Field label={t('entry.part.systemName')} required>
+              <input className={inputCls} placeholder={lang === 'ko' ? '예: 도어 트림, 좌석, 계기판' : 'e.g.: Door Trim, Seat, IP'} value={system} onChange={e => setSystem(e.target.value)} />
             </Field>
-            <Field label="기준차종 (베이스)" required>
-              <input className={inputCls} placeholder="예: VN3 (공용화 대상 양산차)" value={baseVehicle} onChange={e => setBaseVehicle(e.target.value)} />
+            <Field label={t('entry.part.baseVehicle')} required>
+              <input className={inputCls} placeholder={lang === 'ko' ? '예: VN3 (공용화 대상 양산차)' : 'e.g.: VN3 (C/O target production vehicle)'} value={baseVehicle} onChange={e => setBaseVehicle(e.target.value)} />
             </Field>
           </div>
 
@@ -334,26 +379,26 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
               disabled={!canProceed}
               className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-[var(--radius-button)] text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              다음: 2레벨 부품 입력
+              {t('entry.part.next')}
               <ChevronRight size={16} />
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── Step 2: 2레벨 부품 ─── */}
+      {/* ─── Step 2: L2 Parts ─── */}
       {step === 2 && (
         <>
-          {/* 1레벨 Summary (locked) */}
+          {/* L1 Summary (locked) */}
           <div className="bg-primary-dim/40 rounded-[var(--radius-card)] border border-primary/20 px-5 py-3 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">1레벨</span>
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">{t('cotype.short.1level')}</span>
               </div>
               <span className="text-sm font-bold">{system}</span>
               <span className="text-xs text-text-muted">
-                {selectedVehicle?.code} · 기준: {baseVehicle} · {coType}
+                {selectedVehicle?.code} · {lang === 'ko' ? '기준' : 'Base'}: {baseVehicle} · {t(CO_TYPE_KEYS[coType])}
               </span>
             </div>
             <button
@@ -361,7 +406,7 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
               className="flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer"
             >
               <ArrowLeft size={12} />
-              수정
+              {t('entry.part.edit')}
             </button>
           </div>
 
@@ -371,14 +416,17 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <div className="w-2 h-2 rounded-full bg-success" />
-                  <h3 className="text-base font-bold">Step 2: 2레벨 세부 부품</h3>
+                  <h3 className="text-base font-bold">{t('entry.part.step2.full')}</h3>
                 </div>
                 <p className="text-xs text-text-muted ml-4">
-                  위 1레벨 시스템 <strong>{system}</strong>에 소속되는 부품을 입력합니다 ({subParts.length}개)
+                  {lang === 'ko'
+                    ? <>위 1레벨 시스템 <strong>{system}</strong>에 소속되는 부품을 입력합니다 ({subParts.length}개)</>
+                    : <>Enter parts belonging to L1 system <strong>{system}</strong> ({subParts.length} items)</>
+                  }
                 </p>
               </div>
               <button onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-[var(--radius-button)] text-xs font-medium hover:bg-primary-hover transition-colors cursor-pointer">
-                <Plus size={14} /> 행 추가
+                <Plus size={14} /> {t('entry.part.addRow')}
               </button>
             </div>
 
@@ -386,13 +434,13 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-secondary">
-                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[180px]">부품명 *</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[140px]">부품번호 *</th>
-                    <th className="text-center px-3 py-2.5 font-semibold text-text-muted w-[70px]">C/O</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[120px]">C/O 출처</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[120px]">공급업체</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[100px]">지역</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-text-muted w-[90px]">소재비($)</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[180px]">{t('entry.part.col.partName')}</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[140px]">{t('entry.part.col.partNo')}</th>
+                    <th className="text-center px-3 py-2.5 font-semibold text-text-muted w-[70px]">{t('entry.part.col.co')}</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[120px]">{t('entry.part.col.source')}</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[120px]">{t('entry.part.col.supplier')}</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-text-muted w-[100px]">{t('entry.part.col.region')}</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-text-muted w-[90px]">{t('entry.part.col.cost')}</th>
                     <th className="w-[40px]" />
                   </tr>
                 </thead>
@@ -400,7 +448,7 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
                   {subParts.map((row, i) => (
                     <tr key={i} className="border-t border-border">
                       <td className="px-2 py-2">
-                        <input className={inputCls} placeholder="부품명" value={row.partName} onChange={e => updateRow(i, 'partName', e.target.value)} />
+                        <input className={inputCls} placeholder={lang === 'ko' ? '부품명' : 'Part name'} value={row.partName} onChange={e => updateRow(i, 'partName', e.target.value)} />
                       </td>
                       <td className="px-2 py-2">
                         <input className={inputCls} placeholder="87620-XXXXX" value={row.partNo} onChange={e => updateRow(i, 'partNo', e.target.value)} />
@@ -413,14 +461,14 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
                         />
                       </td>
                       <td className="px-2 py-2">
-                        <input className={inputCls} placeholder={row.isCo ? '출처 차종' : '-'} disabled={!row.isCo} value={row.coSource} onChange={e => updateRow(i, 'coSource', e.target.value)} />
+                        <input className={inputCls} placeholder={row.isCo ? (lang === 'ko' ? '출처 차종' : 'Source vehicle') : '-'} disabled={!row.isCo} value={row.coSource} onChange={e => updateRow(i, 'coSource', e.target.value)} />
                       </td>
                       <td className="px-2 py-2">
-                        <input className={inputCls} placeholder="공급업체" value={row.supplier} onChange={e => updateRow(i, 'supplier', e.target.value)} />
+                        <input className={inputCls} placeholder={lang === 'ko' ? '공급업체' : 'Supplier'} value={row.supplier} onChange={e => updateRow(i, 'supplier', e.target.value)} />
                       </td>
                       <td className="px-2 py-2">
                         <select className={selectCls} value={row.supplierRegion} onChange={e => updateRow(i, 'supplierRegion', e.target.value)}>
-                          {REGIONS.map(r => <option key={r}>{r}</option>)}
+                          {REGIONS.map(r => <option key={r} value={r}>{t(REGION_KEYS[r])}</option>)}
                         </select>
                       </td>
                       <td className="px-2 py-2">
@@ -445,14 +493,14 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
                 className="flex items-center gap-1.5 px-4 py-2.5 bg-secondary text-text-muted rounded-[var(--radius-button)] text-sm font-medium hover:bg-secondary-hover transition-colors cursor-pointer"
               >
                 <ArrowLeft size={14} />
-                이전
+                {t('entry.part.prev')}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={subParts.filter(s => s.partName.trim() && s.partNo.trim()).length === 0}
                 className="px-6 py-2.5 bg-primary text-white rounded-[var(--radius-button)] text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                등록하기
+                {t('entry.part.submit')}
               </button>
             </div>
           </div>
@@ -463,10 +511,11 @@ function PartForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 }
 
 /* ═══════════════════════════════════════════════
-   Tab 3: 비C/O 사유 입력
+   Tab 3: Non-C/O Reason Entry
    ═══════════════════════════════════════════════ */
 
 function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const { t, lang } = useLang()
   const vehicles = getMergedVehicles()
   const [vehicleCode, setVehicleCode] = useState(vehicles[0]?.code ?? '')
   const [systemIdx, setSystemIdx] = useState(0)
@@ -508,7 +557,11 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
       },
       createdAt: new Date().toISOString(),
     })
-    onSuccess(`${selectedSub.partName}의 비C/O 사유가 등록되었습니다`)
+    onSuccess(
+      lang === 'ko'
+        ? `${selectedSub.partName}의 비C/O 사유가 등록되었습니다`
+        : `${selectedSub.partName} non-C/O reason registered`
+    )
     setBaseSpec(''); setNewSpec(''); setDiffDesc(''); setDesignIntent('')
     setImpactArea(''); setCoCondition(''); setAddCost(0)
   }
@@ -521,28 +574,30 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
     <div className="grid grid-cols-3 gap-6">
       {/* Part selector */}
       <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-        <h3 className="text-base font-bold mb-4">부품 선택</h3>
+        <h3 className="text-base font-bold mb-4">{t('entry.reason.selectPart')}</h3>
 
         <div className="flex flex-col gap-4">
-          <Field label="차종" required>
+          <Field label={t('entry.reason.vehicle')} required>
             <select className={selectCls} value={vehicleCode} onChange={e => onVehicleChange(e.target.value)}>
               {vehicles.map(v => <option key={v.code} value={v.code}>{v.code} – {v.name}</option>)}
             </select>
           </Field>
 
-          <Field label="시스템" required>
+          <Field label={t('entry.reason.system')} required>
             <select className={selectCls} value={systemIdx} onChange={e => onSystemChange(Number(e.target.value))}>
               {parts.map((p, i) => <option key={i} value={i}>{p.system}</option>)}
             </select>
           </Field>
 
-          <Field label="부품" required>
+          <Field label={t('entry.reason.part')} required>
             <select className={selectCls} value={subPartIdx} onChange={e => setSubPartIdx(Number(e.target.value))}>
               {subParts.length === 0
-                ? <option>세부 부품 없음</option>
+                ? <option>{t('entry.reason.noSub')}</option>
                 : subParts.map((s, i) => (
                     <option key={i} value={i}>
-                      {s.partName} ({s.partNo}) {s.isCo ? '– C/O' : '– 비C/O'}
+                      {s.partName} ({s.partNo}) {s.isCo
+                        ? '– C/O'
+                        : lang === 'ko' ? '– 비C/O' : '– Non-C/O'}
                     </option>
                   ))
               }
@@ -551,12 +606,12 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 
           {selectedSub && (
             <div className="mt-2 p-3 bg-secondary rounded-[var(--radius-button)]">
-              <p className="text-xs text-text-muted">선택된 부품</p>
+              <p className="text-xs text-text-muted">{t('entry.reason.selected')}</p>
               <p className="text-sm font-bold mt-1">{selectedSub.partName}</p>
               <p className="text-xs text-text-subtle font-mono mt-0.5">{selectedSub.partNo}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${selectedSub.isCo ? 'bg-success-dim text-success' : 'bg-danger-dim text-danger'}`}>
-                  {selectedSub.isCo ? 'C/O' : '비C/O'}
+                  {selectedSub.isCo ? 'C/O' : (lang === 'ko' ? '비C/O' : 'Non-C/O')}
                 </span>
                 <span className="text-xs text-text-muted">{selectedSub.supplier} · ${selectedSub.materialCost}</span>
               </div>
@@ -567,51 +622,51 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 
       {/* Reason form */}
       <div className="col-span-2 bg-surface rounded-[var(--radius-card)] border border-border p-6">
-        <h3 className="text-base font-bold mb-1">비C/O 사유 상세</h3>
-        <p className="text-sm text-text-muted mb-6">왜 이 부품이 공용화되지 못하는지 사유를 기록합니다</p>
+        <h3 className="text-base font-bold mb-1">{t('entry.reason.title')}</h3>
+        <p className="text-sm text-text-muted mb-6">{t('entry.reason.desc')}</p>
 
         <div className="grid grid-cols-2 gap-5 mb-5">
-          <Field label="사유 카테고리" required>
+          <Field label={t('entry.reason.category')} required>
             <select className={selectCls} value={category} onChange={e => setCategory(e.target.value as ReasonCategory)}>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c} value={c}>{t(REASON_KEYS[c])}</option>)}
             </select>
           </Field>
-          <Field label="C/O 가능성">
+          <Field label={t('entry.reason.possibility')}>
             <select className={selectCls} value={possibility} onChange={e => setPossibility(e.target.value as CoPossibility)}>
-              {POSSIBILITIES.map(p => <option key={p} value={p}>{p.toUpperCase()}</option>)}
+              {POSSIBILITIES.map(p => <option key={p} value={p}>{t(POSS_KEYS[p])}</option>)}
             </select>
             <span className={`text-xs font-medium mt-1 ${possibilityColors[possibility]}`}>
-              {possibility === 'high' ? '즉시 전환 가능' : possibility === 'medium' ? '조건부 전환 가능' : possibility === 'low' ? '향후 검토 필요' : '전환 불가'}
+              {t(POSS_DESC_KEYS[possibility])}
             </span>
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-5 mb-5">
-          <Field label="기준 사양 (Base Spec)" required>
-            <textarea className={textareaCls} placeholder="기존 양산차의 사양..." value={baseSpec} onChange={e => setBaseSpec(e.target.value)} />
+          <Field label={t('entry.reason.baseSpec')} required>
+            <textarea className={textareaCls} placeholder={lang === 'ko' ? '기존 양산차의 사양...' : 'Production vehicle spec...'} value={baseSpec} onChange={e => setBaseSpec(e.target.value)} />
           </Field>
-          <Field label="변경 사양 (New Spec)" required>
-            <textarea className={textareaCls} placeholder="개발차에 요구되는 사양..." value={newSpec} onChange={e => setNewSpec(e.target.value)} />
+          <Field label={t('entry.reason.newSpec')} required>
+            <textarea className={textareaCls} placeholder={lang === 'ko' ? '개발차에 요구되는 사양...' : 'Required dev vehicle spec...'} value={newSpec} onChange={e => setNewSpec(e.target.value)} />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-5 mb-5">
-          <Field label="핵심 차이 설명">
-            <textarea className={textareaCls} placeholder="두 사양 간 핵심 차이점..." value={diffDesc} onChange={e => setDiffDesc(e.target.value)} />
+          <Field label={t('entry.reason.diffDesc')}>
+            <textarea className={textareaCls} placeholder={lang === 'ko' ? '두 사양 간 핵심 차이점...' : 'Key differences between specs...'} value={diffDesc} onChange={e => setDiffDesc(e.target.value)} />
           </Field>
-          <Field label="설계 의도 (왜 바꾸나)">
-            <textarea className={textareaCls} placeholder="변경이 필요한 이유..." value={designIntent} onChange={e => setDesignIntent(e.target.value)} />
+          <Field label={t('entry.reason.designIntent')}>
+            <textarea className={textareaCls} placeholder={lang === 'ko' ? '변경이 필요한 이유...' : 'Reason for change...'} value={designIntent} onChange={e => setDesignIntent(e.target.value)} />
           </Field>
         </div>
 
         <div className="grid grid-cols-3 gap-5 mb-6">
-          <Field label="영향 영역">
-            <input className={inputCls} placeholder="예: 조립라인, 품질" value={impactArea} onChange={e => setImpactArea(e.target.value)} />
+          <Field label={t('entry.reason.impactArea')}>
+            <input className={inputCls} placeholder={lang === 'ko' ? '예: 조립라인, 품질' : 'e.g.: Assembly line, Quality'} value={impactArea} onChange={e => setImpactArea(e.target.value)} />
           </Field>
-          <Field label="C/O 전환 조건">
-            <input className={inputCls} placeholder="예: 형상 일치시 전환 가능" value={coCondition} onChange={e => setCoCondition(e.target.value)} />
+          <Field label={t('entry.reason.coCondition')}>
+            <input className={inputCls} placeholder={lang === 'ko' ? '예: 형상 일치시 전환 가능' : 'e.g.: Convertible if shape matches'} value={coCondition} onChange={e => setCoCondition(e.target.value)} />
           </Field>
-          <Field label="추가 비용 ($)">
+          <Field label={t('entry.reason.addCost')}>
             <input className={inputCls + ' text-right'} type="number" min={0} step={0.1} value={addCost} onChange={e => setAddCost(parseFloat(e.target.value) || 0)} />
           </Field>
         </div>
@@ -621,7 +676,7 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
           disabled={!selectedSub || !baseSpec.trim() || !newSpec.trim()}
           className="px-6 py-2.5 bg-primary text-white rounded-[var(--radius-button)] text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          사유 등록하기
+          {t('entry.reason.submit')}
         </button>
       </div>
     </div>
@@ -629,10 +684,11 @@ function ReasonForm({ onSuccess }: { onSuccess: (msg: string) => void }) {
 }
 
 /* ═══════════════════════════════════════════════
-   Tab 4: 엑셀 등록
+   Tab 4: Excel Upload
    ═══════════════════════════════════════════════ */
 
 function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const { t, lang } = useLang()
   const [parsed, setParsed] = useState<ParsedExcel | null>(null)
   const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -641,7 +697,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      onSuccess('지원하지 않는 파일 형식입니다. .xlsx 파일을 사용해주세요.')
+      onSuccess(t('entry.excel.unsupported'))
       return
     }
     setLoading(true)
@@ -650,10 +706,10 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
       const result = await parseExcelFile(file)
       setParsed(result)
     } catch {
-      onSuccess('파일 파싱 중 오류가 발생했습니다.')
+      onSuccess(t('entry.excel.parseError'))
     }
     setLoading(false)
-  }, [onSuccess])
+  }, [onSuccess, t])
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault(); setDragging(false)
@@ -689,7 +745,11 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
       localStorage.setItem(STORAGE.reasons, JSON.stringify([...newReasons, ...existing]))
     }
     const { vehicleCount, partCount, subPartCount, reasonCount } = parsed.summary
-    onSuccess(`등록 완료: 차종 ${vehicleCount}건, 시스템 ${partCount}건 (부품 ${subPartCount}개), 사유 ${reasonCount}건`)
+    onSuccess(
+      lang === 'ko'
+        ? `등록 완료: 차종 ${vehicleCount}건, 시스템 ${partCount}건 (부품 ${subPartCount}개), 사유 ${reasonCount}건`
+        : `Import complete: ${vehicleCount} vehicles, ${partCount} systems (${subPartCount} parts), ${reasonCount} reasons`
+    )
     setParsed(null); setFileName('')
   }
 
@@ -699,27 +759,27 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
       <div className="grid grid-cols-3 gap-6">
         {/* Left: Template */}
         <div className="bg-surface rounded-[var(--radius-card)] border border-border p-6">
-          <h3 className="text-base font-bold mb-1">양식 다운로드</h3>
-          <p className="text-sm text-text-muted mb-4">3개 시트가 포함된 엑셀 템플릿</p>
+          <h3 className="text-base font-bold mb-1">{t('entry.excel.template')}</h3>
+          <p className="text-sm text-text-muted mb-4">{t('entry.excel.templateDesc')}</p>
 
           <div className="flex flex-col gap-3 mb-6">
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-primary" />
-              <span className="text-text-muted">Sheet 1:</span> <span className="font-medium">차종</span>
+              <span className="text-text-muted">Sheet 1:</span> <span className="font-medium">{t('entry.excel.sheet1')}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-success" />
-              <span className="text-text-muted">Sheet 2:</span> <span className="font-medium">부품</span>
+              <span className="text-text-muted">Sheet 2:</span> <span className="font-medium">{t('entry.excel.sheet2')}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="w-2 h-2 rounded-full bg-warning" />
-              <span className="text-text-muted">Sheet 3:</span> <span className="font-medium">비C/O 사유</span>
+              <span className="text-text-muted">Sheet 3:</span> <span className="font-medium">{t('entry.excel.sheet3')}</span>
             </div>
           </div>
 
           <p className="text-xs text-text-subtle mb-4">
-            양식에 예시 데이터가 포함되어 있습니다.<br />
-            * 표시 컬럼은 필수 입력입니다.
+            {t('entry.excel.templateNote')}<br />
+            {t('entry.excel.requiredNote')}
           </p>
 
           <button
@@ -727,7 +787,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-[var(--radius-button)] text-sm font-medium hover:bg-primary-hover transition-colors cursor-pointer"
           >
             <Download size={16} />
-            양식 다운로드 (.xlsx)
+            {t('entry.excel.download')}
           </button>
         </div>
 
@@ -745,19 +805,19 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
             {loading ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-text-muted">파싱 중...</p>
+                <p className="text-sm text-text-muted">{t('entry.excel.parsing')}</p>
               </div>
             ) : fileName ? (
               <div className="flex flex-col items-center gap-3">
                 <FileSpreadsheet size={40} className="text-success" />
                 <p className="text-sm font-medium">{fileName}</p>
-                <p className="text-xs text-text-muted">다른 파일을 업로드하려면 클릭하세요</p>
+                <p className="text-xs text-text-muted">{t('entry.excel.uploadOther')}</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
                 <Upload size={40} className="text-text-subtle" />
-                <p className="text-sm font-medium">엑셀 파일을 드래그하거나 클릭하여 업로드</p>
-                <p className="text-xs text-text-subtle">.xlsx, .xls, .csv 지원</p>
+                <p className="text-sm font-medium">{t('entry.excel.dropzone')}</p>
+                <p className="text-xs text-text-subtle">{t('entry.excel.supported')}</p>
               </div>
             )}
           </div>
@@ -770,20 +830,20 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
           {/* Summary cards */}
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-surface rounded-[var(--radius-card)] border border-border p-4">
-              <p className="text-xs text-text-muted">차종</p>
-              <p className="text-2xl font-bold mt-1">{parsed.summary.vehicleCount}<span className="text-sm font-normal text-text-muted ml-1">건</span></p>
+              <p className="text-xs text-text-muted">{t('entry.excel.sheet1')}</p>
+              <p className="text-2xl font-bold mt-1">{parsed.summary.vehicleCount}<span className="text-sm font-normal text-text-muted ml-1">{t('common.count')}</span></p>
             </div>
             <div className="bg-surface rounded-[var(--radius-card)] border border-border p-4">
-              <p className="text-xs text-text-muted">시스템</p>
-              <p className="text-2xl font-bold mt-1">{parsed.summary.partCount}<span className="text-sm font-normal text-text-muted ml-1">건</span></p>
+              <p className="text-xs text-text-muted">{t('common.systems')}</p>
+              <p className="text-2xl font-bold mt-1">{parsed.summary.partCount}<span className="text-sm font-normal text-text-muted ml-1">{t('common.count')}</span></p>
             </div>
             <div className="bg-surface rounded-[var(--radius-card)] border border-border p-4">
-              <p className="text-xs text-text-muted">세부 부품</p>
-              <p className="text-2xl font-bold mt-1">{parsed.summary.subPartCount}<span className="text-sm font-normal text-text-muted ml-1">개</span></p>
+              <p className="text-xs text-text-muted">{t('common.subParts')}</p>
+              <p className="text-2xl font-bold mt-1">{parsed.summary.subPartCount}<span className="text-sm font-normal text-text-muted ml-1">{t('common.unit')}</span></p>
             </div>
             <div className="bg-surface rounded-[var(--radius-card)] border border-border p-4">
-              <p className="text-xs text-text-muted">비C/O 사유</p>
-              <p className="text-2xl font-bold mt-1">{parsed.summary.reasonCount}<span className="text-sm font-normal text-text-muted ml-1">건</span></p>
+              <p className="text-xs text-text-muted">{lang === 'ko' ? '비C/O 사유' : 'Non-C/O Reasons'}</p>
+              <p className="text-2xl font-bold mt-1">{parsed.summary.reasonCount}<span className="text-sm font-normal text-text-muted ml-1">{t('common.count')}</span></p>
             </div>
           </div>
 
@@ -792,7 +852,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
             <div className="bg-warning-dim border border-warning/30 rounded-[var(--radius-card)] p-4">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle size={16} className="text-warning" />
-                <span className="text-sm font-bold text-warning">파싱 경고 ({parsed.errors.length}건)</span>
+                <span className="text-sm font-bold text-warning">{t('entry.excel.warnings')} ({parsed.errors.length}{t('common.count')})</span>
               </div>
               <ul className="text-xs text-text-muted flex flex-col gap-1 max-h-[120px] overflow-y-auto">
                 {parsed.errors.map((err, i) => (
@@ -805,35 +865,38 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
           {/* Vehicle preview */}
           {parsed.vehicles.length > 0 && (
             <PreviewTable
-              title="차종 미리보기"
-              headers={['코드', '차종명', '단계', '일정', '반기', '구분']}
+              title={t('entry.excel.preview.vehicle')}
+              headers={[t('entry.excel.h.code'), t('entry.excel.h.name'), t('entry.excel.h.stage'), t('entry.excel.h.schedule'), t('entry.excel.h.half'), t('entry.excel.h.type')]}
               rows={parsed.vehicles.map(v => [v.code, v.name, v.stage, v.date, v.half, v.type])}
+              moreLabel={t('entry.excel.moreRows')}
             />
           )}
 
           {/* Parts preview */}
           {parsed.parts.length > 0 && (
             <PreviewTable
-              title="부품 미리보기"
-              headers={['차종', '시스템', '기준차종', 'C/O Type', '부품수', 'C/O수', 'C/O비용', '신규비용']}
+              title={t('entry.excel.preview.part')}
+              headers={[t('entry.excel.h.vehicle'), t('entry.excel.h.system'), t('entry.excel.h.baseV'), t('entry.excel.h.coType'), t('entry.excel.h.partCount'), t('entry.excel.h.coCount'), t('entry.excel.h.coCost'), t('entry.excel.h.newCost')]}
               rows={parsed.parts.map(p => [
                 p.vehicleCode, p.part.system, p.part.baseVehicle, p.part.coType,
                 String(p.part.subParts), String(p.part.coSubParts),
                 `$${p.part.coCost.toFixed(1)}`, `$${p.part.newDevCost.toFixed(1)}`,
               ])}
+              moreLabel={t('entry.excel.moreRows')}
             />
           )}
 
           {/* Reasons preview */}
           {parsed.reasons.length > 0 && (
             <PreviewTable
-              title="비C/O 사유 미리보기"
-              headers={['차종', '시스템', '부품번호', '카테고리', 'C/O 가능성', '추가비용']}
+              title={t('entry.excel.preview.reason')}
+              headers={[t('entry.excel.h.vehicle'), t('entry.excel.h.system'), t('entry.excel.h.partNo'), t('entry.excel.h.category'), t('entry.excel.h.possibility'), t('entry.excel.h.addCost')]}
               rows={parsed.reasons.map(r => [
                 r.vehicleCode, r.system, r.partNo,
                 r.reason.category, r.reason.coPossibility.toUpperCase(),
                 `$${r.reason.additionalCost}`,
               ])}
+              moreLabel={t('entry.excel.moreRows')}
             />
           )}
 
@@ -843,7 +906,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
               onClick={() => { setParsed(null); setFileName('') }}
               className="px-5 py-2.5 bg-secondary text-text-muted rounded-[var(--radius-button)] text-sm font-medium hover:bg-secondary-hover transition-colors cursor-pointer"
             >
-              취소
+              {t('entry.excel.cancel')}
             </button>
             <button
               onClick={handleImport}
@@ -851,7 +914,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
             >
               <span className="flex items-center gap-2">
                 <Check size={16} />
-                {parsed.summary.vehicleCount + parsed.summary.partCount + parsed.summary.reasonCount}건 등록하기
+                {parsed.summary.vehicleCount + parsed.summary.partCount + parsed.summary.reasonCount}{t('entry.excel.import')}
               </span>
             </button>
           </div>
@@ -863,7 +926,7 @@ function ExcelUpload({ onSuccess }: { onSuccess: (msg: string) => void }) {
 
 /* ─── Preview Table (shared) ─── */
 
-function PreviewTable({ title, headers, rows }: { title: string; headers: string[]; rows: string[][] }) {
+function PreviewTable({ title, headers, rows, moreLabel }: { title: string; headers: string[]; rows: string[][]; moreLabel?: string }) {
   return (
     <div className="bg-surface rounded-[var(--radius-card)] border border-border overflow-hidden">
       <div className="px-6 py-3 border-b border-border">
@@ -889,7 +952,7 @@ function PreviewTable({ title, headers, rows }: { title: string; headers: string
             {rows.length > 20 && (
               <tr className="border-t border-border">
                 <td colSpan={headers.length} className="px-4 py-2 text-center text-text-muted text-xs">
-                  ... 외 {rows.length - 20}건 더
+                  ... {rows.length - 20}{moreLabel ?? ''}
                 </td>
               </tr>
             )}

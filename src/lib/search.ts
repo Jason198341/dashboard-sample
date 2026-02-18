@@ -31,6 +31,7 @@ export function searchParts(query: string): SearchResult[] {
           vehicleMatch ||
           sub.partName.toLowerCase().includes(q) ||
           sub.partNo.toLowerCase().includes(q) ||
+          (sub.coPartNo && sub.coPartNo.toLowerCase().includes(q)) ||
           sub.supplier.toLowerCase().includes(q) ||
           part.system.toLowerCase().includes(q) ||
           part.baseVehicle.toLowerCase().includes(q) ||

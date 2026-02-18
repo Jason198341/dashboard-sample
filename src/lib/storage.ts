@@ -27,6 +27,7 @@ export function getMergedVehicles(): VehicleInfo[] {
       code: av.code, name: av.name,
       stage: av.stage ?? 'Pre-SOP', date: av.date ?? '',
       half: av.half ?? 'H2', type: av.type ?? '개발',
+      salesVolume: av.salesVolume ?? 10000,
       parts: [],
     }
     merged.push(newV)
